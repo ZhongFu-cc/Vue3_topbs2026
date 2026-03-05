@@ -22,6 +22,9 @@ jobs:
 
       - name: Install depemdemcoes and Build
         working-directory: ./ 
+        env:
+          VITE_APP_BASE_API: ${{ secrets.VITE_APP_BASE_API }}
+          VITE_MINIO_API: ${{ secrets.VITE_MINIO_API }}
         run: |
           npm install -g pnpm
           pnpm install
