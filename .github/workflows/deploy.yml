@@ -33,7 +33,7 @@ jobs:
       - name: Check remote folder
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.GCO_VM_HOST }}
+          host: ${{ secrets.GCP_VM_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
