@@ -37,7 +37,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            ls -la /home/user/front-end/backend
+            ls -la /home/user/front-end/backstage
 
       - name: Sync Dis Files to AlmaLinux VM
         uses: burnett01/rsync-deployments@v8
