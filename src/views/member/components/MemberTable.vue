@@ -10,7 +10,7 @@
       <el-table-column prop="email" label="信箱" width="250" />
       <el-table-column prop="country" label="國家" width="100" />
       <el-table-column prop="remitAccountLast5" label="帳戶後五碼" width="100" />
-      <el-table-column v-if="!isIndexView" prop="idCard" label="身分證字號" width="200" />
+      <!-- <el-table-column v-if="!isIndexView" prop="idCard" label="身分證字號" width="200" /> -->
       <el-table-column v-if="!isIndexView" prop="category" label="會員類別" width="200">
         <template #default="scope">
           {{ memberEnums[scope.row.category] }}
@@ -99,4 +99,8 @@ const findFirstVaildTag = (tagList: any) => {
 const isDevice = computed(() => useAppStore().device === 'mobile' ? true : false);
 const isIndexView = computed(() => props.viewPage === 'index' ? true : false);
 </script>
-<style scoped lang="scss"></style>
+<style scoped lang="scss">
+.el-tag {
+  color: white;
+}
+</style>

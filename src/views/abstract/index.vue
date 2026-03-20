@@ -92,6 +92,7 @@
           </template>
         </el-table-column>
         <el-table-column prop="firstAuthor" label="第一作者" width="150"></el-table-column>
+        <el-table-column prop="memberPaymentStatus" label="繳費狀態" width="150"></el-table-column>
         <el-table-column prop="status" label="審核狀態" width="100">
           <template #default="scope">
             <span v-if="scope.row.status == 0" style="color: gray;">未審核</span>
@@ -228,6 +229,7 @@ const getPaperList = async () => {
   if (error) {
     return;
   }
+  console.log(res.data)
 
   res.data.records.forEach((item: any) => {
     item.paperFileUpload = item.paperFileUpload.filter((file: any) =>
