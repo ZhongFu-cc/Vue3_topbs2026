@@ -70,11 +70,12 @@
           <el-input v-model="addReviewerForm.name" placeholder="填寫姓名"></el-input>
         </el-form-item>
         <div>
-          <el-form-item v-for="(item, index) in addReviewerForm.emailList" :label="`信箱 ${index + 1}`"
+          <el-form-item v-for="(item, index) in addReviewerForm.emailList" :label="`信箱 ${Number(index) + 1}`"
             :prop="'emailList.' + index + '.email'" :rules="addReviewerFormRules.email">
             <div class="email-form-item">
               <el-input v-model="item.email" placeholder="填寫信箱"></el-input>
-              <el-button v-if="index != 0" @click="removeEmail(addReviewerForm, index)" type="danger" circle><el-icon>
+              <el-button v-if="index != 0" @click="removeEmail(addReviewerForm, Number(index))" type="danger"
+                circle><el-icon>
                   <ElIconMinus />
                 </el-icon></el-button>
               <el-button v-if="index === addReviewerForm.emailList.length - 1"
@@ -115,11 +116,12 @@
           <el-input v-model="editReviewerForm.name" placeholder="填寫姓名"></el-input>
         </el-form-item>
         <div>
-          <el-form-item v-for="(item, index) in editReviewerForm.emailList" :label="`信箱 ${index + 1}`"
+          <el-form-item v-for="(item, index) in editReviewerForm.emailList" :label="`信箱 ${Number(index) + 1}`"
             :prop="'emailList.' + index + '.email'" :rules="addReviewerFormRules.email">
             <div class="email-form-item">
               <el-input v-model="item.email" placeholder="填寫信箱"></el-input>
-              <el-button v-if="index != 0" @click="removeEmail(editReviewerForm, index)" type="danger" circle><el-icon>
+              <el-button v-if="index != 0" @click="removeEmail(editReviewerForm, Number(index))" type="danger"
+                circle><el-icon>
                   <ElIconMinus />
                 </el-icon></el-button>
               <el-button v-if="index === editReviewerForm.emailList.length - 1"
@@ -134,12 +136,6 @@
         <el-form-item label="連絡電話" prop="phone" :rules="addReviewerFormRules.phone">
           <el-input v-model="editReviewerForm.phone" placeholder="填寫連絡電話"></el-input>
         </el-form-item>
-        <!-- <el-form-item label="帳號" prop="account" :rules="addReviewerFormRules.account">
-          <el-input v-model="editReviewerForm.account" placeholder="填寫帳號"></el-input>
-        </el-form-item>
-        <el-form-item label="密碼" prop="password" :rules="addReviewerFormRules.password">
-          <el-input v-model="editReviewerForm.password" placeholder="填寫密碼"></el-input>
-        </el-form-item> -->
         <el-form-item>
           <el-button type="primary" @click="editReviewer(editReviewerFormRef)">確定</el-button>
           <el-button @click="isEdit = false">取消</el-button>
@@ -458,6 +454,7 @@ const findFirstVaildTag = (tagList: any) => {
   }
   return '';
 }
+
 
 
 onMounted(() => {

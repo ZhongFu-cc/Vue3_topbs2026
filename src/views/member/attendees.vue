@@ -55,18 +55,18 @@
               {{ scope.row.member.phone }}
             </template>
           </el-table-column>
-          <el-table-column prop="tagSet" label="標籤" min-width="40" align="center">
+          <el-table-column prop="tagList" label="標籤" min-width="40" align="center">
             <template #default="scope">
-              <el-popover v-if="scope.row.tagSet.length > 0" placement="left-start" title="標籤" :width="200"
+              <el-popover v-if="scope.row.tagList.length > 0" placement="left-start" title="標籤" :width="200"
                 trigger="hover">
                 <template #reference>
-                  <el-tag v-if="findFirstVaildTag(scope.row.tagSet)" size="large" round
-                    :color="findFirstVaildTag(scope.row.tagSet).color" effect="light">{{
-                      findFirstVaildTag(scope.row.tagSet).name }}</el-tag>
+                  <el-tag v-if="findFirstVaildTag(scope.row.tagList)" size="large" round
+                    :color="findFirstVaildTag(scope.row.tagList).color" effect="light">{{
+                      findFirstVaildTag(scope.row.tagList).name }}</el-tag>
                 </template>
                 <template #default>
                   <div class="tag-popover-box">
-                    <div v-for="tag in scope.row.tagSet" :key="tag.tagId" class="tag-item">
+                    <div v-for="tag in scope.row.tagList" :key="tag.tagId" class="tag-item">
                       <el-tag v-if="tag.status === 0" size="large" round :color="tag.color">{{
                         tag.name }}</el-tag>
                     </div>
@@ -160,14 +160,13 @@ const attendeeList = reactive<any>([])
 
 const getAttendeeList = async () => {
   let res = await getAttendeeListByTagAndPaginationApi(currentPage.value, input.value)
-
   Object.assign(attendeeList, res.data)
 }
 
-const findFirstVaildTag = (tagSet: any) => {
-  for (let i = 0; i < tagSet.length; i++) {
-    if (tagSet[i].status === 0) {
-      return tagSet[i];
+const findFirstVaildTag = (tagList: any) => {
+  for (let i = 0; i < tagList.length; i++) {
+    if (tagList[i].status === 0) {
+      return tagList[i];
     }
   }
   return '';

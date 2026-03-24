@@ -92,6 +92,7 @@
           </template>
         </el-table-column>
         <el-table-column prop="firstAuthor" label="第一作者" width="150"></el-table-column>
+        <el-table-column prop="memberPaymentStatus" label="繳費狀態" width="150"></el-table-column>
         <el-table-column prop="status" label="審核狀態" width="100">
           <template #default="scope">
             <span v-if="scope.row.status == 0" style="color: gray;">未審核</span>
@@ -162,9 +163,13 @@
         </el-form-item>
         <el-form-item label="審稿通過" prop="status">
           <el-select v-model="updateForm.status" placeholder="請選擇">
-            <el-option label="未審核" :value="0"></el-option>
+            <!-- <el-option label="未審核" :value="0"></el-option>
             <el-option label="已入選" :value="1"></el-option>
-            <el-option label="未入選" :value="2"></el-option>
+            <el-option label="未入選" :value="2"></el-option> -->
+            <el-option v-for="status in updateForm.statusList" :key="status.value" :label="status.label"
+              :value="status.value" :disabled="status.isDisabled">
+
+            </el-option>
           </el-select>
 
         </el-form-item>
@@ -228,6 +233,7 @@ const getPaperList = async () => {
   if (error) {
     return;
   }
+  console.log(res.data)
 
   res.data.records.forEach((item: any) => {
     item.paperFileUpload = item.paperFileUpload.filter((file: any) =>
@@ -359,6 +365,7 @@ const toggleEdit = (paper: any) => {
   updateForm.publicationGroup = paper.publicationGroup;
   updateForm.reportLocation = paper.reportLocation;
   updateForm.reportTime = paper.reportTime;
+  updateForm.statusList = statusListMap.value.get(paper.status) || [];
 }
 
 const openFile = async (filePath: string) => {
@@ -415,6 +422,17 @@ const batchDownloadPaperFile = async () => {
   }
   window.open(import.meta.env.VITE_APP_BASE_API + res.data, '_blank');
 }
+
+const statusListMap = computed(() => {
+  return new Map([
+    [0, [{ label: '未審核', value: 0, isDisabled: true }, { label: '入選', value: 1, isDisabled: false }, { label: '未入選', value: 2, isDisabled: false }]],
+    [1, [{ label: '入選', value: 1, isDisabled: true }, { label: '未審核', value: 0, isDisabled: false }, { label: '未獲獎', value: 3, isDisabled: false }]],
+    [2, [{ label: '未入選', value: 2, isDisabled: true }, { label: '未審核', value: 0, isDisabled: false }]],
+    [3, [{ label: '獲獎', value: 3, isDisabled: true }, { label: '入選', value: 1, isDisabled: false }]],
+    [4, [{ label: '未獲獎', value: 4, isDisabled: true }, { label: '入選', value: 1, isDisabled: false }]],
+
+  ]);
+})
 
 onMounted(() => {
   getPaperList()

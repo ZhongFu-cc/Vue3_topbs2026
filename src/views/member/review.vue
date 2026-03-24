@@ -10,7 +10,8 @@
       </template>
 
       <template #data-table>
-        <MemberTable :member-data="memberList.records" view-page="review" @update-unpaid-member="updateUnpaidMember">
+        <MemberTable v-if="memberList.records" :member-data="memberList.records" view-page="review"
+          @update-unpaid-member="updateUnpaidMember">
         </MemberTable>
       </template>
 
@@ -49,7 +50,6 @@ let memberList = reactive<Record<string, any>>({})
 const getMember = async (page: number, size: number) => {
   // let res = await getMemberOrder(page, size, "1", input.value)
   let res = await getUnpaidMemberApi(page, input.value);
-  memberList
   Object.assign(memberList, res.data)
 }
 

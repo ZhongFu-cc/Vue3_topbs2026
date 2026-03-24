@@ -68,66 +68,6 @@ export const constantRoutes: RouteRecordRaw[] = [
       },
     ],
   },
-  //系統設定，沒子目錄，器捐協會沒有設定
-
-  //小腸協會,會員的審核及列表
-  // {
-  //   path: "/member",
-  //   component: Layout,
-  //   name: "member", // 用于 keep-alive, 必须与SFC自动推导或者显示声明的组件name一致
-  //   // https://cn.vuejs.org/guide/built-ins/keep-alive.html#include-exclude
-  //   meta: {
-  //     title: "會員管理",
-  //     icon: "el-icon-Avatar",
-  //     //affix: true,
-  //     keepAlive: true,
-  //     alwaysShow: false,
-  //     hidden: isReviewer,
-  //   },
-  //   children: [
-  //     {
-  //       path: "",
-  //       component: () => import("@/views/member/index.vue"),
-  //       name: "memberPage",
-  //       meta: {
-  //         title: "會員列表",
-  //         icon: "el-icon-Avatar",
-  //         hidden: false,
-  //         roles: ["ADMIN"],
-  //         keepAlive: true,
-  //       },
-  //     },
-  //     {
-  //       path: "review",
-  //       component: () => import("@/views/member/review.vue"),
-  //       name: "memberReview",
-  //       meta: {
-  //         title: "繳費審核",
-  //         icon: "el-icon-Finished",
-  //         hidden: false,
-  //         roles: ["ADMIN"],
-  //         keepAlive: true,
-  //       },
-  //     },
-  //     {
-  //       path: "attendees",
-  //       component: () => import("@/views/member/attendees.vue"),
-  //       name: "attendees",
-  //       meta: {
-  //         title: "與會者管理",
-  //         icon: "el-icon-Finished",
-  //         hidden: false,
-  //         roles: ["ADMIN"],
-  //         keepAlive: true,
-  //       },
-  //     },
-  //   ],
-  // },
-
-  //小腸協會,信件的模板及寄信
-
-
-
 ];
 
 export const adminDynamicRoutes: RouteRecordRaw[] = [
@@ -534,6 +474,31 @@ export const adminDynamicRoutes: RouteRecordRaw[] = [
         name: "FileCenterProgramBook",
         meta: {
           title: "電子議程",
+          icon: "menu",
+          hidden: false,
+          roles: ["ADMIN"],
+          keepAlive: true,
+        },
+      },
+    ],
+  },
+  {
+    path: "/registration",
+    component: Layout,
+    name: "Registration",
+    meta: {
+      title: "報到管理",
+      icon: "el-icon-EditPen",
+      hidden: false,
+      roles: ["ADMIN"],
+    },
+    children: [
+      {
+        path: "registration-system",
+        component: () => import("@/views/attendee-check/index.vue"),
+        name: "RegistrationSystem",
+        meta: {
+          title: "報到系統",
           icon: "menu",
           hidden: false,
           roles: ["ADMIN"],
