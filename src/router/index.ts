@@ -505,6 +505,18 @@ export const adminDynamicRoutes: RouteRecordRaw[] = [
           keepAlive: true,
         },
       },
+      {
+        path: "barcode-gun-registration",
+        component: () => import("@/views/barcode-gun-registration/index.vue"),
+        name: "BarcodeGunRegistration",
+        meta: {
+          title: "掃碼槍報到系統",
+          icon: "menu",
+          hidden: false,
+          roles: ["ADMIN"],
+          keepAlive: true,
+        },
+      },
     ],
   },
 

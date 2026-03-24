@@ -191,7 +191,19 @@ const getDataAndEditorLoaded = async () => {
           value: '{{password}}',
         }
       }
+      break;
+    case 'attendee':
+      mergeTags = {
+        name: {
+          name: '與會者姓名',
+          value: '{{name}}',
+        },
+        QRcode: {
+          name: '與會者QR碼',
+          value: '{{QRcode}}',
+        },
 
+      }
 
   }
 
@@ -199,6 +211,7 @@ const getDataAndEditorLoaded = async () => {
   emailEditor.value.editor.addEventListener('editor:ready', function () {
 
     emailEditor.value.editor.setMergeTags(mergeTags);
+    console.log(mergeTags)
 
     isDisabled.value = false;
   });

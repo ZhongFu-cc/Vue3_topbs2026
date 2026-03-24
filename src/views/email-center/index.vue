@@ -236,6 +236,7 @@ const submitInsertForm = (form: FormInstance | undefined) => {
         //呼叫父組件給的新增function API
         let res = await addEmailTemplateApi(insertEmailTemplateFormData)
         ElMessage.success('新增成功');
+        console.log(res.data)
         router.push(`${route.fullPath}/${res.data}`)
 
       } catch (err: any) {

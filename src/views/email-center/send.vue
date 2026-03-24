@@ -514,12 +514,13 @@ const sendMail = async (sendMailFormRef: FormInstance | undefined) => {
 
   if (!sendMailFormRef) return;
   returnData.sendEmailDTO = sendEmailDto
+  console.log(returnData)
 
   sendMailFormRef.validate(async (valid) => {
     if (valid) {
       try {
         //呼叫父組件給的新增function API
-        await sendEmailByCategoryAndTagApi(returnData, sendUrl.value);
+        await sendEmailByCategoryAndTagApi(returnData);
         await loading()
         ElMessage.success('寄送成功');
         tempSelectedTagList.value = []
