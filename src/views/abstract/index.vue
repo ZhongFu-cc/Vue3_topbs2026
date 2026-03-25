@@ -14,10 +14,9 @@
       </div>
 
       <div class="search-bar">
-        <div>
-          <el-input v-model="input" style="width: 240px" placeholder="輸入內容,Enter查詢" @input="getPaperList()" />
-          <el-select v-model="filterAbsType" style="width: 240px;" class="filter-abs-type" placeholder="請選擇投稿類型"
-            @change="getPaperList()">
+        <div class="query-box">
+          <el-input v-model="input" placeholder="輸入內容,Enter查詢" @input="getPaperList()" />
+          <el-select v-model="filterAbsType" class="filter-abs-type" placeholder="請選擇投稿類型" @change="getPaperList()">
             <el-option value="Poster Presentation"></el-option>
             <el-option value="Video Presentation"></el-option>
             <el-option value="Young Investigator"></el-option>
@@ -25,46 +24,26 @@
           </el-select>
         </div>
 
-        <div>
-          <el-button @click="openAutoAssignReviewerDialog">
-            自動分配審稿委員
+        <div class="operate-btn-box">
+          <el-button v-for="action in primaryActions" :key="action.label" :type="action.type || 'primary'"
+            @click="action.action">
+            {{ action.label }}
           </el-button>
 
-          <el-button type="success" @click="downloadExcel('first_review')">
-            下載一階評分Excel
-          </el-button>
+          <el-dropdown placement="bottom-start" trigger="hover">
+            <el-button><el-icon>
+                <MoreFilled />
+              </el-icon></el-button>
 
-          <el-button type="success" @click="downloadExcel('second_review')">
-            下載二階評分Excel
-          </el-button>
-
-          <el-button type="primary" @click="batchDownloadPaperFile">
-            下載稿件
-          </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item v-for="action in overflowActions" :key="action.label" @click="action.action">
+                  {{ action.label }}
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
-        <!-- <el-select v-model="filterAbsProp" style="width: 240px;" class="filter-abs-prop"
-          placeholder="請選擇文章屬性"></el-select> -->
-
-
-        <!-- <el-select v-model="filterStatus" style="width: 240px;" class="filter-status" placeholder="請選擇">
-          <el-option label="全選" value="">
-            <span>全選</span>
-          </el-option>
-          <el-option label="未審核" value="0">
-            <span>未審核</span>
-          </el-option>
-          <el-option label="審核通過" value="1">
-            <span style="color:green;">審核通過</span>
-          </el-option>
-          <el-option label="駁回申請" value="2">
-            <span style="color:red;">駁回申請</span>
-          </el-option>
-
-          <template #label="{ label, value }">
-            <span :style="{ color: value == '1' ? 'green' : value == '-1' ? 'red' : 'black' }">{{ label }}</span>
-          </template>
-</el-select> -->
-
       </div>
 
 
@@ -92,14 +71,17 @@
           </template>
         </el-table-column>
         <el-table-column prop="firstAuthor" label="第一作者" width="150"></el-table-column>
-        <el-table-column prop="memberPaymentStatus" label="繳費狀態" width="150"></el-table-column>
+        <el-table-column prop="memberPaymentStatus" label="繳費狀態" width="150">
+          <template #default="scope">
+            <span v-if="scope.row.memberPaymentStatus == '未繳費'" style="color: red;">未繳費</span>
+            <span v-else style="color: black;">{{ scope.row.memberPaymentStatus }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="status" label="審核狀態" width="100">
           <template #default="scope">
-            <span v-if="scope.row.status == 0" style="color: gray;">未審核</span>
-            <span v-else-if="scope.row.status == 1" style="color: green;">入選</span>
-            <span v-else-if="scope.row.status == 2" style="color: red;">未入選</span>
-            <span v-else-if="scope.row.status == 3" style="color: red;">入選(二階段)</span>
-            <span v-else-if="scope.row.status == 4" style="color: red;">未入選(二階段)</span>
+            <span :style="{ color: statusEnums.find(item => item.value === scope.row.status)?.color || 'black' }">
+              {{statusEnums.find(item => item.value === scope.row.status)?.label || '未知狀態'}}
+            </span>
           </template>
         </el-table-column>
         <el-table-column label="" width="250">
@@ -143,10 +125,6 @@
       <el-divider></el-divider>
       <p>所有作者單位 : {{ reviewPaper.allAuthorAffiliation }}</p>
       <el-divider></el-divider>
-      <!-- <div class="download-box">
-        <el-button v-for="item in reviewPaper.paperFileUpload" type="primary" link @click="openFile(item.path)">下載{{
-          item.type.split('_')[1] }}</el-button>
-      </div> -->
 
       <el-form :model-="updateForm">
         <el-form-item label="發表編號" prop="publicationNumber">
@@ -163,9 +141,6 @@
         </el-form-item>
         <el-form-item label="審稿通過" prop="status">
           <el-select v-model="updateForm.status" placeholder="請選擇">
-            <!-- <el-option label="未審核" :value="0"></el-option>
-            <el-option label="已入選" :value="1"></el-option>
-            <el-option label="未入選" :value="2"></el-option> -->
             <el-option v-for="status in updateForm.statusList" :key="status.value" :label="status.label"
               :value="status.value" :disabled="status.isDisabled">
 
@@ -208,6 +183,52 @@
       </el-button>
     </el-dialog>
 
+    <el-dialog v-model="importExcelDialogState.isOpen" title="匯入 Excel 檔案">
+      <div class="template-tips-content">
+        <ul class="step-list" style="list-style-type: decimal;">
+          <li>匯入稿件excel進行更新</li>
+          <li>注意事項:
+            <ul class="sub-list">
+              <li>只允許「發表方式」、「發表群組」、「發表編號」、「演講時間」、「演講地點」、「審核狀態」等欄位更新，其餘欄位無效</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+      <div class="upload-excel-content">
+        <el-upload ref="uploadRef" drag class="upload-demo" :limit="1" :on-change="handleUpload" :auto-upload="false"
+          :on-remove="handleRemove">
+          <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+          <div class="el-upload__text">
+            Drop file here or <em>click to upload</em>
+          </div>
+        </el-upload>
+      </div>
+      <span slot="footer" class="dialog-footer">
+        <el-button type="danger" plain @click="importExcelDialogState.closeDialog()">取消</el-button>
+        <el-button type="success" plain @click="handleImportExcel">確定</el-button>
+      </span>
+    </el-dialog>
+
+    <el-dialog v-model="importExcelResultDialogState.isOpen" title="匯入結果" width="30%">
+      <div v-if="importExcelResultDialogState.resultData">
+        <p>總共 {{ importExcelResultDialogState.resultData.totalCount }} 條數據</p>
+        <p>成功 {{ importExcelResultDialogState.resultData.successCount }} 條</p>
+        <p>失敗 {{ importExcelResultDialogState.resultData.failCount }} 條</p>
+        <div v-if="importExcelResultDialogState.resultData.failCount > 0">
+          <h3>失敗詳情：</h3>
+          <ul>
+            <li v-for="(fail, index) in importExcelResultDialogState.resultData.failList" :key="index">
+              行 {{ fail.rows }}: {{ fail.message }}
+            </li>
+          </ul>
+        </div>
+      </div>
+      <span slot="footer" class="dialog-footer">
+        <el-button type="primary" plain @click="importExcelResultDialogState.closeDialog()">確定</el-button>
+      </span>
+
+    </el-dialog>
+
 
 
   </section>
@@ -215,8 +236,9 @@
 
 </template>
 <script lang="ts" setup>
-import { assignPaperReviewersApi, autoAssignPaperReviewersApi, downloadPaperScoreExcelApi, getDownloadPaperFileUrlApi, getPaperPageApi, updatePaperApi } from '@/api/abstract';
+import { assignPaperReviewersApi, autoAssignPaperReviewersApi, downloadPaperScoreExcelApi, getDownloadPaperFileUrlApi, getPaperPageApi, importPaperScoreExcelApi, updatePaperApi } from '@/api/abstract';
 import { tryCatch } from '@/utils/tryCatch';
+import { UploadProps, UploadUserFile } from 'element-plus';
 
 
 
@@ -423,6 +445,89 @@ const batchDownloadPaperFile = async () => {
   window.open(import.meta.env.VITE_APP_BASE_API + res.data, '_blank');
 }
 
+const importExcelDialogState = ref({
+  isOpen: false,
+  openDialog: () => {
+    importExcelDialogState.value.isOpen = true;
+  },
+  closeDialog: () => {
+    importExcelDialogState.value.isOpen = false;
+  }
+})
+
+interface ImportResult {
+  failCount: number;
+  failList: Array<{ rows: number, message: string }>;
+  successCount: number;
+  totalCount: number;
+}
+
+const importExcelResultDialogState = ref({
+  isOpen: false,
+  resultData: null as ImportResult | null,
+  openDialog: (data: any) => {
+    console.log('Import result data:', data);
+    importExcelResultDialogState.value.resultData = data;
+    importExcelResultDialogState.value.isOpen = true;
+  },
+  closeDialog: () => {
+    importExcelResultDialogState.value.isOpen = false;
+    importExcelResultDialogState.value.resultData = null;
+    getPaperList();
+    importExcelDialogState.value.closeDialog();
+
+  }
+})
+
+const uploadFileList = ref<any>([]);
+const handleUpload: UploadProps['onChange'] = (file: UploadUserFile, uploadFiles) => {
+  if (file.size == 0) {
+    ElMessage.error('File is empty');
+    return false;
+  }
+
+  if (file.status === 'ready' && file.size) {
+    if (file.name.split('.').pop() !== 'xlsx' && file.name.split('.').pop() !== 'xls') {
+      ElMessage.error('File must be xlsx');
+      uploadFiles.pop();
+      return;
+    }
+    uploadFileList.value.push(file);
+  }
+}
+
+const handleRemove: UploadProps['onRemove'] = (file, fileList) => {
+  uploadFileList.value = fileList;
+}
+
+const handleImportExcel = async () => {
+  try {
+    const data = new FormData();
+    uploadFileList.value.forEach((file: any) => {
+      data.append('file', file.raw);
+    });
+    let res = await importPaperScoreExcelApi(data);
+    ElMessage.success("上傳成功");
+    importExcelResultDialogState.value.openDialog(res.data);
+    // getPaperList();
+    // importExcelDialogState.value.closeDialog();
+    uploadFileList.value = [];
+    console.log(res);
+  } catch (error) {
+    console.log(error);
+    ElMessage.error("上傳失敗" + error)
+  }
+}
+
+const statusEnums =
+  [
+    { label: '未審核', value: 0, color: 'gray' },
+    { label: '入選', value: 1, color: 'green' },
+    { label: '未入選', value: 2, color: 'red' },
+    { label: '獲獎', value: 3, color: 'gold' },
+    { label: '未入選(二階段)', value: 4, color: 'orange' },
+  ]
+
 const statusListMap = computed(() => {
   return new Map([
     [0, [{ label: '未審核', value: 0, isDisabled: true }, { label: '入選', value: 1, isDisabled: false }, { label: '未入選', value: 2, isDisabled: false }]],
@@ -432,6 +537,22 @@ const statusListMap = computed(() => {
     [4, [{ label: '未獲獎', value: 4, isDisabled: true }, { label: '入選', value: 1, isDisabled: false }]],
 
   ]);
+})
+
+const allActions = ref([
+  { label: "自動分配審稿委員", action: () => openAutoAssignReviewerDialog(), type: 'warning' as any, isPrimary: true },
+  { label: "下載稿件", action: () => batchDownloadPaperFile(), type: 'primary' as any, isPrimary: true },
+  { label: "下載一階評分表", action: () => downloadExcel('first_review'), type: 'success' as any, isPrimary: false },
+  { label: "下載二階評分表", action: () => downloadExcel('second_review'), type: 'success' as any, isPrimary: false },
+  { label: "Excel批量更新", action: () => importExcelDialogState.value.openDialog(), type: 'success' as any, isPrimary: false },
+])
+
+const primaryActions = computed(() => {
+  return allActions.value.filter(action => action.isPrimary);
+})
+
+const overflowActions = computed(() => {
+  return allActions.value.filter(action => !action.isPrimary);
 })
 
 onMounted(() => {
@@ -470,6 +591,27 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 20px;
+
+  .query-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .el-input,
+    .el-select {
+      width: 240px;
+    }
+  }
+
+  .operate-btn-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .el-button {
+      margin: 0;
+    }
+  }
 
 }
 
@@ -517,5 +659,11 @@ onMounted(() => {
   display: block;
   margin: 0 0 0 auto;
 
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
 }
 </style>
