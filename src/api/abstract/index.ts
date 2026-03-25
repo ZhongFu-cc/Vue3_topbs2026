@@ -74,3 +74,11 @@ export function getDownloadPaperFileUrlApi(): AxiosPromise<any> {
     method: "post",
   });
 }
+
+export function importPaperScoreExcelApi(formData: FormData): AxiosPromise<any> {
+  return request({
+    url: "/paper/import-excel-update",
+    method: "post",
+    data: formData,
+  });
+}
