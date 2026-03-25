@@ -209,6 +209,26 @@
       </span>
     </el-dialog>
 
+    <el-dialog v-model="importExcelResultDialogState.isOpen" title="匯入結果" width="30%">
+      <div v-if="importExcelResultDialogState.resultData">
+        <p>總共 {{ importExcelResultDialogState.resultData.totalCount }} 條數據</p>
+        <p>成功 {{ importExcelResultDialogState.resultData.successCount }} 條</p>
+        <p>失敗 {{ importExcelResultDialogState.resultData.failCount }} 條</p>
+        <div v-if="importExcelResultDialogState.resultData.failCount > 0">
+          <h3>失敗詳情：</h3>
+          <ul>
+            <li v-for="(fail, index) in importExcelResultDialogState.resultData.failList" :key="index">
+              行 {{ fail.rows }}: {{ fail.message }}
+            </li>
+          </ul>
+        </div>
+      </div>
+      <span slot="footer" class="dialog-footer">
+        <el-button type="primary" plain @click="importExcelResultDialogState.closeDialog()">確定</el-button>
+      </span>
+
+    </el-dialog>
+
 
 
   </section>
@@ -435,6 +455,30 @@ const importExcelDialogState = ref({
   }
 })
 
+interface ImportResult {
+  failCount: number;
+  failList: Array<{ rows: number, message: string }>;
+  successCount: number;
+  totalCount: number;
+}
+
+const importExcelResultDialogState = ref({
+  isOpen: false,
+  resultData: null as ImportResult | null,
+  openDialog: (data: any) => {
+    console.log('Import result data:', data);
+    importExcelResultDialogState.value.resultData = data;
+    importExcelResultDialogState.value.isOpen = true;
+  },
+  closeDialog: () => {
+    importExcelResultDialogState.value.isOpen = false;
+    importExcelResultDialogState.value.resultData = null;
+    getPaperList();
+    importExcelDialogState.value.closeDialog();
+
+  }
+})
+
 const uploadFileList = ref<any>([]);
 const handleUpload: UploadProps['onChange'] = (file: UploadUserFile, uploadFiles) => {
   if (file.size == 0) {
@@ -464,9 +508,11 @@ const handleImportExcel = async () => {
     });
     let res = await importPaperScoreExcelApi(data);
     ElMessage.success("上傳成功");
-    getPaperList();
-    importExcelDialogState.value.closeDialog();
+    importExcelResultDialogState.value.openDialog(res.data);
+    // getPaperList();
+    // importExcelDialogState.value.closeDialog();
     uploadFileList.value = [];
+    console.log(res);
   } catch (error) {
     console.log(error);
     ElMessage.error("上傳失敗" + error)
