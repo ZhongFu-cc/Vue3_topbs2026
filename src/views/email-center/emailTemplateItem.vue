@@ -213,6 +213,10 @@ const getDataAndEditorLoaded = async () => {
     emailEditor.value.editor.setMergeTags(mergeTags);
     console.log(mergeTags)
 
+    emailEditor.value.editor.setBodyValues({
+      contentWidth: "650px"          // 這裡要寫固定寬度，如果是 100% 就會變全寬
+    });
+
     isDisabled.value = false;
   });
 
@@ -243,7 +247,7 @@ const emailEditor = ref()
 
 const emailOptions = {
   locale: 'zh-TW',
-  displayMode: 'email',
+  displayMode: 'email'
 }
 
 
@@ -318,6 +322,9 @@ const save = async () => {
           minify: true, // 压缩 HTML 大小
         }
       );
+      {
+        inlineStyles: true
+      }
     });
   };
 
