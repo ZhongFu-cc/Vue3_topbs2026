@@ -322,6 +322,7 @@ const emailEditor = ref()
 
 const emailOptions = {
   locale: 'zh-TW',
+  displalMode: 'email',
 }
 
 
