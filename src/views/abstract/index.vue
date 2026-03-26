@@ -73,7 +73,7 @@
         <el-table-column prop="firstAuthor" label="第一作者" width="150"></el-table-column>
         <el-table-column prop="memberPaymentStatus" label="繳費狀態" width="150">
           <template #default="scope">
-            <span v-if="scope.row.memberPaymentStatus == '未繳費'" style="color: red;">未繳費</span>
+            <span v-if="scope.row.memberPaymentStatus == '未付款'" style="color: red;">未付款</span>
             <span v-else style="color: black;">{{ scope.row.memberPaymentStatus }}</span>
           </template>
         </el-table-column>
@@ -134,7 +134,7 @@
           <el-input v-model="updateForm.publicationGroup"></el-input>
         </el-form-item>
         <el-form-item label="報告地點" prop="reportLocation">
-          <el-select v-model="updateForm.reportLocation"></el-select>
+          <el-input v-model="updateForm.reportLocation"></el-input>
         </el-form-item>
         <el-form-item label="報告時間" prop="reportTime">
           <el-input v-model="updateForm.reportTime"></el-input>
@@ -525,13 +525,13 @@ const statusEnums =
     { label: '入選', value: 1, color: 'green' },
     { label: '未入選', value: 2, color: 'red' },
     { label: '獲獎', value: 3, color: 'gold' },
-    { label: '未入選(二階段)', value: 4, color: 'orange' },
+    { label: '未獲獎(二階段)', value: 4, color: 'orange' },
   ]
 
 const statusListMap = computed(() => {
   return new Map([
     [0, [{ label: '未審核', value: 0, isDisabled: true }, { label: '入選', value: 1, isDisabled: false }, { label: '未入選', value: 2, isDisabled: false }]],
-    [1, [{ label: '入選', value: 1, isDisabled: true }, { label: '未審核', value: 0, isDisabled: false }, { label: '未獲獎', value: 3, isDisabled: false }]],
+    [1, [{ label: '入選', value: 1, isDisabled: true }, { label: '未審核', value: 0, isDisabled: false }, { label: '獲獎', value: 3, isDisabled: false }, { label: '未獲獎', value: 3, isDisabled: false }]],
     [2, [{ label: '未入選', value: 2, isDisabled: true }, { label: '未審核', value: 0, isDisabled: false }]],
     [3, [{ label: '獲獎', value: 3, isDisabled: true }, { label: '入選', value: 1, isDisabled: false }]],
     [4, [{ label: '未獲獎', value: 4, isDisabled: true }, { label: '入選', value: 1, isDisabled: false }]],
