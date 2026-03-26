@@ -163,8 +163,8 @@ const deleteRow = (id: number): void => {
     type: 'warning'
   }).then(async () => {
     // 用户選擇確認，繼續操作
-    // await deleteEmailTemplateApi(id)
-    // getEmailTemplateByPagination(currentPage.value, 10)
+    await deleteEmailTemplateApi(id)
+    getEmailTemplateByPagination(currentPage.value, 10)
 
     ElMessage.success('刪除成功');
   }).catch((err) => {
@@ -182,8 +182,8 @@ const deleteList = () => {
       //確定刪除後使用父組件傳來的function
       //提取idList
       let deleteIdList = deleteSelectList.map((item: { emailTemplateId: string }) => item.emailTemplateId)
-      // await batchDeleteEmailTemplateApi(deleteIdList)
-      // getEmailTemplateByPagination(currentPage.value, 10)
+      await batchDeleteEmailTemplateApi(deleteIdList)
+      getEmailTemplateByPagination(currentPage.value, 10)
       ElMessage.success('刪除成功');
     }).catch((err) => {
     })

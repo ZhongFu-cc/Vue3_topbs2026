@@ -309,6 +309,10 @@ const getDataAndEditorLoaded = async () => {
   emailEditor.value.editor.addEventListener('editor:ready', function () {
 
     emailEditor.value.editor.setMergeTags(mergeTags);
+    emailEditor.value.editor.setBodyValues({
+      contentWidth: "650px"          // 這裡要寫固定寬度，如果是 100% 就會變全寬
+    });
+
     isDisabled.value = false;
   });
 
@@ -322,7 +326,7 @@ const emailEditor = ref()
 
 const emailOptions = {
   locale: 'zh-TW',
-  displalMode: 'email',
+  displayMode: 'email',
 }
 
 
@@ -390,27 +394,27 @@ const loading = () => {
   });
 }
 
-function optimizeForOutlook(html: any): string {
-  let imgIndex = 0;
-  const optimizedHtml = html.replace(
-    /<img([^>]*)>/g,
-    (match: any, attributes: any) => {
-      return `
-        <table width="600" align="${imageInfoList[imgIndex].position}" cellpadding="0" cellspacing="0" border="0">
-          <tr>
-            <td>
-              <img${attributes} style="display: block; height: auto;" width=${imageInfoList[imgIndex++].maxWidthString} height="auto">
-            </td>
-          </tr>
-        </table>
-      `;
-    }
-  );
-  return optimizedHtml;
-}
+// function optimizeForOutlook(html: any): string {
+//   let imgIndex = 0;
+//   const optimizedHtml = html.replace(
+//     /<img([^>]*)>/g,
+//     (match: any, attributes: any) => {
+//       return `
+//         <table width="600" align="${imageInfoList[imgIndex].position}" cellpadding="0" cellspacing="0" border="0">
+//           <tr>
+//             <td>
+//               <img${attributes} style="display: block; height: auto;" width=${imageInfoList[imgIndex++].maxWidthString} height="auto">
+//             </td>
+//           </tr>
+//         </table>
+//       `;
+//     }
+//   );
+//   return optimizedHtml;
+// }
 
-/** 用於儲存各個圖片資訊 */
-const imageInfoList = reactive<Array<{ position: string, maxWidthString: string }>>([]);
+// /** 用於儲存各個圖片資訊 */
+// const imageInfoList = reactive<Array<{ position: string, maxWidthString: string }>>([]);
 
 // const getImageSizeFromDesign = (design: any) => {
 //   const images: Array<{ src: string; width: number; height: number }> = [];
@@ -501,6 +505,9 @@ const sendMail = async (sendMailFormRef: FormInstance | undefined) => {
 
 
   //資料賦值
+  // sendMailFormData.htmlContent = optimizeForOutlook(htmlContent);
+  // sendMailFormData.plainText = plainText
+  // sendMailFormData.tagList = selectTags.value
   sendEmailDto.htmlContent = htmlContent;
   sendEmailDto.plainText = plainText
   returnData.tagIdList = selectTags.value.map((item: any) => {
