@@ -531,7 +531,7 @@ const statusEnums =
 const statusListMap = computed(() => {
   return new Map([
     [0, [{ label: '未審核', value: 0, isDisabled: true }, { label: '入選', value: 1, isDisabled: false }, { label: '未入選', value: 2, isDisabled: false }]],
-    [1, [{ label: '入選', value: 1, isDisabled: true }, { label: '未審核', value: 0, isDisabled: false }, { label: '入選', value: 1, isDisabled: false }, { label: '未獲獎', value: 3, isDisabled: false }]],
+    [1, [{ label: '入選', value: 1, isDisabled: true }, { label: '未審核', value: 0, isDisabled: false }, { label: '獲獎', value: 3, isDisabled: false }, { label: '未獲獎', value: 3, isDisabled: false }]],
     [2, [{ label: '未入選', value: 2, isDisabled: true }, { label: '未審核', value: 0, isDisabled: false }]],
     [3, [{ label: '獲獎', value: 3, isDisabled: true }, { label: '入選', value: 1, isDisabled: false }]],
     [4, [{ label: '未獲獎', value: 4, isDisabled: true }, { label: '入選', value: 1, isDisabled: false }]],
