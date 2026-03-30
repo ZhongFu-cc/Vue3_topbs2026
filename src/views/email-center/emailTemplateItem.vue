@@ -320,11 +320,9 @@ const save = async () => {
         },
         {
           minify: true, // 压缩 HTML 大小
+          inlineStyles: true
         }
       );
-      {
-        inlineStyles: true
-      }
     });
   };
 

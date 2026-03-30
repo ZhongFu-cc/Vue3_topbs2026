@@ -463,8 +463,6 @@ const sendMail = async (sendMailFormRef: FormInstance | undefined) => {
         },
         {
           minify: true, // 压缩 HTML 大小
-        },
-        {
           inlineStyles: true,
         },
       );
