@@ -247,7 +247,7 @@ const emailEditor = ref()
 
 const emailOptions = {
   locale: 'zh-TW',
-  displayMode: 'email'
+  displayMode: 'email' as const
 }
 
 
@@ -320,11 +320,9 @@ const save = async () => {
         },
         {
           minify: true, // 压缩 HTML 大小
+          inlineStyles: true
         }
       );
-      {
-        inlineStyles: true
-      }
     });
   };
 

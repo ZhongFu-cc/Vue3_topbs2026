@@ -96,6 +96,7 @@ import { FormInstance, FormRules } from 'element-plus'
 import { getAllTagsApi, getTagsByPaginationApi } from '@/api/tag'
 import { tryCatch } from '@/utils/tryCatch'
 
+
 import BasicComponent from '@/layout/components/Basic/index.vue'
 
 const router = useRouter()
@@ -326,7 +327,7 @@ const emailEditor = ref()
 
 const emailOptions = {
   locale: 'zh-TW',
-  displayMode: 'email',
+  displayMode: 'email' as const,
 }
 
 
@@ -463,8 +464,6 @@ const sendMail = async (sendMailFormRef: FormInstance | undefined) => {
         },
         {
           minify: true, // 压缩 HTML 大小
-        },
-        {
           inlineStyles: true,
         },
       );
