@@ -555,16 +555,16 @@ export function useTSC(config: PrinterConfiguration = { connectionType: 'usb' })
             console.log(`TSC Setup: 寬度=${widthMm}mm, 高度=${heightMm}mm`)
             tsc.setup(widthMm, heightMm, '4', '12', '0', '3', '0')
 
-            // 預設使用自動置中，只有明確指定座標時才使用固定位置
+            // 使用自定義 x,y 座標（如果有提供），否則使用自動置中
             let finalPosition
             if (printData.x !== undefined && printData.y !== undefined) {
-                // 只有在明確提供座標時才使用自定義位置
+                // 將 mm 轉換為 dots (300 DPI: 1mm = 11.81 dots)
                 const dpi = labelConfig.value.dpi
                 const xDots = Math.round(Number(printData.x) * dpi / 25.4)
                 const yDots = Math.round(Number(printData.y) * dpi / 25.4)
                 const fontSize = printData.fontSize || 150
 
-                console.log(`使用明確指定的位置:`)
+                console.log(`使用自定義位置:`)
                 console.log(`  輸入: x=${printData.x}mm, y=${printData.y}mm, 字體=${fontSize}`)
                 console.log(`  轉換: x=${xDots} dots, y=${yDots} dots (DPI=${dpi})`)
                 console.log(`  標籤尺寸: ${widthMm}mm x ${heightMm}mm`)
@@ -576,8 +576,8 @@ export function useTSC(config: PrinterConfiguration = { connectionType: 'usb' })
                     actualWidth: 0 // 不需要精確的寬度計算
                 }
             } else {
-                // 預設行為：自動置中位置
-                console.log('使用預設的自動置中位置')
+                // 使用自動置中位置
+                console.log('使用自動置中位置')
                 finalPosition = calculateCenteredPosition(printData, printData.rotation || '0')
             }
 
@@ -598,42 +598,14 @@ export function useTSC(config: PrinterConfiguration = { connectionType: 'usb' })
             // 計算行高（以 dots 為單位）
             const lineHeightDots = Math.round(finalPosition.actualHeight * 1.2) // 行高 = 字體高度 × 1.2
 
-            // 為每一行調用 windowsfont，每行都重新計算置中位置
+            // 為每一行調用 windowsfont
             textLines.forEach((line, index) => {
                 const currentY = finalPosition.y + (index * lineHeightDots)
-                let currentX = finalPosition.x
 
-                // 如果是自動置中模式（沒有指定固定座標），為每行計算獨立的置中位置
-                if (printData.x === undefined || printData.y === undefined) {
-                    // 計算這一行的文字寬度和置中位置
-                    const lineAutoResult = calculateAutoFontHeight(
-                        line,
-                        finalPosition.actualHeight,
-                        (printData.fontStyle || '0') as FontStyle,
-                        printData.fontFamily || 'Arial',
-                        labelConfigDots.value.printableWidthDots
-                    )
-
-                    // 計算這一行的置中偏移量
-                    const lineCenterOffsetX = Math.round((labelConfigDots.value.printableWidthDots - lineAutoResult.actualWidth) / 2)
-
-                    // 根據旋轉角度計算最終 X 座標
-                    if ((printData.rotation || '0') === '180') {
-                        currentX = labelConfigDots.value.widthDots - labelConfigDots.value.marginLeftDots - lineCenterOffsetX
-                    } else {
-                        currentX = labelConfigDots.value.marginLeftDots + lineCenterOffsetX
-                    }
-
-                    console.log(`第${index + 1}行 "${line}" 置中計算:`)
-                    console.log(`  文字寬度: ${lineAutoResult.actualWidth} dots`)
-                    console.log(`  置中偏移: ${lineCenterOffsetX} dots`)
-                    console.log(`  最終 X 座標: ${currentX} dots`)
-                }
-
-                console.log(`打印第${index + 1}行: "${line}" 在位置 (${currentX}, ${currentY})`)
+                console.log(`打印第${index + 1}行: "${line}" 在位置 (${finalPosition.x}, ${currentY})`)
 
                 tsc.windowsfont(
-                    String(currentX),
+                    String(finalPosition.x),
                     String(currentY),
                     String(finalPosition.actualHeight),
                     (printData.rotation || '0') as Rotation,
