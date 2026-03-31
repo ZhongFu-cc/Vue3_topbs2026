@@ -550,35 +550,99 @@ export function useTSC(config: PrinterConfiguration = { connectionType: 'usb' })
             // 清空緩存
             tsc.clearbuffer()
 
-            // 設定紙張
+            // 設定紙張（確保使用正確的尺寸）
             const { widthMm, heightMm } = labelConfig.value
+            console.log(`TSC Setup: 寬度=${widthMm}mm, 高度=${heightMm}mm`)
             tsc.setup(widthMm, heightMm, '4', '12', '0', '3', '0')
 
-            // 計算文字位置
-            const position = calculateCenteredPosition(printData, printData.rotation || '0')
+            // 預設使用自動置中，只有明確指定座標時才使用固定位置
+            let finalPosition
+            if (printData.x !== undefined && printData.y !== undefined) {
+                // 只有在明確提供座標時才使用自定義位置
+                const dpi = labelConfig.value.dpi
+                const xDots = Math.round(Number(printData.x) * dpi / 25.4)
+                const yDots = Math.round(Number(printData.y) * dpi / 25.4)
+                const fontSize = printData.fontSize || 150
 
-            // 列印文字
-            tsc.windowsfont(
-                String(position.x),
-                String(position.y),
-                String(position.actualHeight),
-                (printData.rotation || '0') as Rotation,
-                (printData.fontStyle || '0') as FontStyle,
-                (printData.fontUnderline || '0') as FontUnderline,
-                printData.fontFamily || 'Arial',
-                printData.text
-            )
+                console.log(`使用明確指定的位置:`)
+                console.log(`  輸入: x=${printData.x}mm, y=${printData.y}mm, 字體=${fontSize}`)
+                console.log(`  轉換: x=${xDots} dots, y=${yDots} dots (DPI=${dpi})`)
+                console.log(`  標籤尺寸: ${widthMm}mm x ${heightMm}mm`)
 
-            tsc.windowsfont(
-                String(position.x),
-                String(position.y + position.actualHeight + 10), // 在第一行文字下方10點位置再印一行（示範多行列印）
-                String(position.actualHeight),
-                (printData.rotation || '0') as Rotation,
-                (printData.fontStyle || '0') as FontStyle,
-                (printData.fontUnderline || '0') as FontUnderline,
-                printData.fontFamily || 'Arial',
-                printData.text
-            )
+                finalPosition = {
+                    x: xDots,
+                    y: yDots,
+                    actualHeight: fontSize,
+                    actualWidth: 0 // 不需要精確的寬度計算
+                }
+            } else {
+                // 預設行為：自動置中位置
+                console.log('使用預設的自動置中位置')
+                finalPosition = calculateCenteredPosition(printData, printData.rotation || '0')
+            }
+
+            // 處理多行文字打印
+            const textLines = printData.text.split('\n').filter(line => line.trim() !== '')
+            if (textLines.length === 0) {
+                textLines.push('') // 至少保持一行空行
+            }
+
+            console.log(`發送給 TSC 的參數:`)
+            console.log(`  起始位置: x=${finalPosition.x} dots, y=${finalPosition.y} dots`)
+            console.log(`  字體高度: ${finalPosition.actualHeight} dots`)
+            console.log(`  文字內容: ${textLines.length} 行`)
+            textLines.forEach((line, index) => {
+                console.log(`    第${index + 1}行: "${line}"`)
+            })
+
+            // 計算行高（以 dots 為單位）
+            const lineHeightDots = Math.round(finalPosition.actualHeight * 1.2) // 行高 = 字體高度 × 1.2
+
+            // 為每一行調用 windowsfont，每行都重新計算置中位置
+            textLines.forEach((line, index) => {
+                const currentY = finalPosition.y + (index * lineHeightDots)
+                let currentX = finalPosition.x
+
+                // 如果是自動置中模式（沒有指定固定座標），為每行計算獨立的置中位置
+                if (printData.x === undefined || printData.y === undefined) {
+                    // 計算這一行的文字寬度和置中位置
+                    const lineAutoResult = calculateAutoFontHeight(
+                        line,
+                        finalPosition.actualHeight,
+                        (printData.fontStyle || '0') as FontStyle,
+                        printData.fontFamily || 'Arial',
+                        labelConfigDots.value.printableWidthDots
+                    )
+
+                    // 計算這一行的置中偏移量
+                    const lineCenterOffsetX = Math.round((labelConfigDots.value.printableWidthDots - lineAutoResult.actualWidth) / 2)
+
+                    // 根據旋轉角度計算最終 X 座標
+                    if ((printData.rotation || '0') === '180') {
+                        currentX = labelConfigDots.value.widthDots - labelConfigDots.value.marginLeftDots - lineCenterOffsetX
+                    } else {
+                        currentX = labelConfigDots.value.marginLeftDots + lineCenterOffsetX
+                    }
+
+                    console.log(`第${index + 1}行 "${line}" 置中計算:`)
+                    console.log(`  文字寬度: ${lineAutoResult.actualWidth} dots`)
+                    console.log(`  置中偏移: ${lineCenterOffsetX} dots`)
+                    console.log(`  最終 X 座標: ${currentX} dots`)
+                }
+
+                console.log(`打印第${index + 1}行: "${line}" 在位置 (${currentX}, ${currentY})`)
+
+                tsc.windowsfont(
+                    String(currentX),
+                    String(currentY),
+                    String(finalPosition.actualHeight),
+                    (printData.rotation || '0') as Rotation,
+                    (printData.fontStyle || '0') as FontStyle,
+                    (printData.fontUnderline || '0') as FontUnderline,
+                    printData.fontFamily || 'Arial',
+                    line
+                )
+            })
 
             // 列印標籤
             tsc.printlabel(copies, 1)
@@ -724,7 +788,7 @@ export function useTSC(config: PrinterConfiguration = { connectionType: 'usb' })
         error: readonly(error),
         connectionType: readonly(connectionType),
         networkConfig: readonly(networkConfig),
-        labelConfig: readonly(labelConfig),
+        labelConfig: labelConfig,
         labelConfigDots: readonly(labelConfigDots),
         usbPrinters: readonly(usbPrinters),
         driverPrinters: readonly(driverPrinters),
