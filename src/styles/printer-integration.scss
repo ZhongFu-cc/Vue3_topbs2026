@@ -1,0 +1,76 @@
+// 印表機整合樣式
+.printer-status {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+
+    .status-indicator {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 14px;
+        color: #909399;
+
+        &.active {
+            color: #67C23A;
+        }
+
+        &.error {
+            color: #F56C6C;
+        }
+
+        .el-icon {
+            font-size: 16px;
+        }
+    }
+}
+
+.printer-config {
+    .printer-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        margin-top: 20px;
+    }
+
+    .error-text {
+        color: #F56C6C;
+        font-size: 12px;
+        margin-left: 8px;
+    }
+}
+
+.printer-config-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 12px;
+    color: #409EFF;
+
+    &:hover {
+        background-color: #f0f9ff;
+    }
+}
+
+// 自動打印狀態樣式
+.el-switch {
+    &.is-disabled {
+        opacity: 0.5;
+    }
+}
+
+// 打印狀態提示
+.print-status-tips {
+    background: #f0f9ff;
+    border: 1px solid #b3d8ff;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    color: #409EFF;
+
+    .el-icon {
+        margin-right: 6px;
+    }
+}

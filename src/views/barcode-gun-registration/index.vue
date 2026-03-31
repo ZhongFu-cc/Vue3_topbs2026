@@ -46,6 +46,12 @@
                             <el-input v-model="queryText" placeholder="搜尋參與者資料" @input="handleInput" />
                         </el-form-item>
                         <el-button class="site-on" link type="primary" @click="openDialog">+現場登記</el-button>
+                        <el-button class="printer-config-btn" link type="info" @click="openPrinterConfig">
+                            <el-icon>
+                                <Setting />
+                            </el-icon>
+                            印表機設定
+                        </el-button>
                     </div>
 
                     <div class="barcode-gun-status">
@@ -55,6 +61,8 @@
                             </el-icon>
                             <span>{{ isScanning ? '正在監聽掃碼槍...' : '掃碼槍待機中' }}</span>
                         </div>
+
+
                         <div class="action-mode">
                             <el-button :class="checkActive === 'checkin' ? 'active' : ''" class="checkin-btn"
                                 @click="switchCheckBtn('checkin')">
@@ -83,7 +91,10 @@
                         </el-scrollbar>
                     </div>
                 </div>
+
+
             </div>
+
         </el-card>
 
         <el-dialog class="option-dialog" v-model="isOptionDialogVisible" width="40%">
@@ -160,26 +171,301 @@
                 </el-form>
             </div>
         </el-drawer>
+
+        <!-- 印表機設定對話框 -->
+        <el-dialog v-model="isPrinterConfigVisible" title="印表機設定" width="80%" class="printer-config-dialog">
+            <div class="printer-config">
+                <el-form label-position="left" label-width="120px">
+                    <el-form-item label="連接方式">
+                        <el-radio-group v-model="connectionType" @change="handleConnectionTypeChange">
+                            <el-radio value="usb">USB</el-radio>
+                            <el-radio value="network">網路</el-radio>
+                            <el-radio value="driver">驅動</el-radio>
+                        </el-radio-group>
+                    </el-form-item>
+
+                    <el-form-item v-if="connectionType === 'usb'" label="USB印表機">
+                        <el-select v-model="selectedPrinter" placeholder="請選擇印表機">
+                            <el-option v-for="printer in usbPrinters" :key="printer.path" :label="printer.name"
+                                :value="printer" />
+                        </el-select>
+                    </el-form-item>
+
+                    <el-form-item v-if="connectionType === 'driver'" label="驅動印表機">
+                        <el-select v-model="selectedPrinter" placeholder="請選擇印表機">
+                            <el-option v-for="printer in driverPrinters" :key="printer.path" :label="printer.name"
+                                :value="printer" />
+                        </el-select>
+                    </el-form-item>
+
+                    <el-form-item label="連接狀態">
+                        <el-tag :type="isConnected ? 'success' : 'danger'">
+                            {{ isConnected ? '已連接' : '未連接' }}
+                        </el-tag>
+                        <span v-if="printerError" class="error-text">{{ printerError }}</span>
+                    </el-form-item>
+
+                    <!-- 標籤預覽與位置調整 -->
+                    <el-divider content-position="left">標籤預覽與位置調整</el-divider>
+
+                    <div class="preview-section">
+                        <div class="preview-canvas-container">
+                            <canvas ref="previewCanvas" width="400" height="300" class="preview-canvas"></canvas>
+                            <div class="canvas-info">
+                                <span>標籤尺寸: {{ labelSettings.width }}mm × {{ labelSettings.height }}mm</span>
+                            </div>
+                        </div>
+
+                        <div class="position-controls">
+                            <h4>位置調整</h4>
+
+                            <el-form-item label="標籤寬度 (mm)">
+                                <el-input-number v-model="labelSettings.width" :min="20" :max="200" :step="1"
+                                    @change="updatePreview" />
+                            </el-form-item>
+
+                            <el-form-item label="標籤高度 (mm)">
+                                <el-input-number v-model="labelSettings.height" :min="15" :max="150" :step="1"
+                                    @change="updatePreview" />
+                            </el-form-item>
+
+                            <el-form-item label="X 軸位置">
+                                <el-slider v-model="labelSettings.x" :min="0" :max="labelSettings.width - 10" :step="1"
+                                    show-input @input="updatePreview" />
+                            </el-form-item>
+
+                            <el-form-item label="Y 軸位置">
+                                <el-slider v-model="labelSettings.y" :min="0" :max="labelSettings.height - 5" :step="1"
+                                    show-input @input="updatePreview" />
+                            </el-form-item>
+
+                            <el-form-item label="字體大小">
+                                <el-slider v-model="labelSettings.fontSize" :min="40" :max="200" :step="10" show-input
+                                    @input="updatePreview" />
+                            </el-form-item>
+
+                            <el-form-item label="預覽文字">
+                                <el-input v-model="labelSettings.previewText" placeholder="輸入要預覽的文字"
+                                    @input="updatePreview" />
+                            </el-form-item>
+
+                            <div class="position-actions">
+                                <el-button @click="resetPosition">重置位置</el-button>
+                                <el-button @click="centerText">置中文字</el-button>
+                            </div>
+                        </div>
+                    </div>
+                </el-form>
+
+                <div class="printer-actions">
+                    <el-button @click="initializePrinters" :loading="isPrinterLoading">重新整理印表機</el-button>
+                    <el-button type="primary" @click="testPrint" :disabled="!isConnected">測試列印</el-button>
+                </div>
+            </div>
+        </el-dialog>
+
+        <!-- 移除原本的測試組件，改為設定按鈕 -->
+        <!-- <TSCPrinterExample></TSCPrinterExample> -->
     </section>
 </template>
 <script lang="ts" setup>
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import {
     getAttendeeListByTagAndPaginationApi,
     insertAttendeeOnSiteApi,
 } from "@/api/attendee";
 import { checkinApi, deleteLastCheckinRecordApi, getCheckDataApi } from "@/api/checkin";
 import { useBarcodeGun } from "@/composables/useBarcodeGun";
+import { useTSC, type PrintData } from "@/composables/useTSC";
 import { ElNotification, ElMessage, FormInstance } from "element-plus";
+import TSCPrinterExample from "@/components/TSCPrinterExample.vue";
+import {
+    Promotion,
+    Delete,
+    Position,
+    Setting,
+    Printer,
+    RefreshLeft
+} from "@element-plus/icons-vue";
 
 import { memberEnums } from "@/enums/MemberEnum";
 import { formRulesTW } from "@/utils/checkSum";
 
 import { useAppStore } from "@/store";
 
-const closeSidebar = () => {
-    const appStore = useAppStore();
-    appStore.closeSideBar();
-};
+// const closeSidebar = () => {
+//     const appStore = useAppStore();
+//     appStore.closeSideBar();
+// };
+
+/**---------------TSC印表機設置----------------- */
+const {
+    isConnected,
+    isLoading: isPrinterLoading,
+    error: printerError,
+    printLabel,
+    selectedPrinter,
+    usbPrinters,
+    driverPrinters,
+    connectionType,
+    setConnectionType,
+    initializePrinters
+} = useTSC()
+
+// 標籤設定和預覽
+const previewCanvas = ref<HTMLCanvasElement | null>(null)
+const labelSettings = reactive({
+    width: 80,      // 標籤寬度 (mm)
+    height: 40,     // 標籤高度 (mm)
+    x: 40,          // X 軸位置
+    y: 20,          // Y 軸位置
+    fontSize: 120,  // 字體大小
+    previewText: '測試標籤'  // 預覽文字
+})
+
+// 更新預覽在面
+const updatePreview = () => {
+    if (!previewCanvas.value) return
+
+    const canvas = previewCanvas.value
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    // 清除帆布
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+    // 計算縮放比例 (假設 1mm = 4 像素)
+    const scale = 4
+    const labelWidth = labelSettings.width * scale
+    const labelHeight = labelSettings.height * scale
+
+    // 繪製標籤背景
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(10, 10, labelWidth, labelHeight)
+    ctx.strokeStyle = '#cccccc'
+    ctx.lineWidth = 2
+    ctx.strokeRect(10, 10, labelWidth, labelHeight)
+
+    // 繪製網格線 (每 5mm 一條線)
+    ctx.strokeStyle = '#f0f0f0'
+    ctx.lineWidth = 1
+    for (let i = 0; i <= labelSettings.width; i += 5) {
+        const x = 10 + i * scale
+        ctx.beginPath()
+        ctx.moveTo(x, 10)
+        ctx.lineTo(x, 10 + labelHeight)
+        ctx.stroke()
+    }
+    for (let i = 0; i <= labelSettings.height; i += 5) {
+        const y = 10 + i * scale
+        ctx.beginPath()
+        ctx.moveTo(10, y)
+        ctx.lineTo(10 + labelWidth, y)
+        ctx.stroke()
+    }
+
+    // 繪製文字
+    const fontSize = Math.max(12, labelSettings.fontSize / 8) // 調整字體大小以適合預覽
+    ctx.font = `${fontSize}px Arial`
+    ctx.fillStyle = '#000000'
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'top'
+
+    const textX = 10 + labelSettings.x * scale
+    const textY = 10 + labelSettings.y * scale
+    ctx.fillText(labelSettings.previewText, textX, textY)
+
+    // 繪製位置指示器
+    ctx.fillStyle = '#ff4d4f'
+    ctx.beginPath()
+    ctx.arc(textX, textY, 3, 0, 2 * Math.PI)
+    ctx.fill()
+
+    // 顯示座標
+    ctx.fillStyle = '#666666'
+    ctx.font = '10px Arial'
+    ctx.fillText(`(${labelSettings.x}, ${labelSettings.y})`, textX + 5, textY - 15)
+}
+
+// 重置位置
+const resetPosition = () => {
+    labelSettings.x = 5
+    labelSettings.y = 5
+    updatePreview()
+}
+
+// 文字置中
+const centerText = () => {
+    if (!previewCanvas.value) return
+
+    const canvas = previewCanvas.value
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    // 計算文字置中位置
+    const fontSize = labelSettings.fontSize / 8
+    ctx.font = `${fontSize}px Arial`
+    const textWidth = ctx.measureText(labelSettings.previewText).width / 4 // 轉換為 mm
+
+    labelSettings.x = Math.max(0, (labelSettings.width - textWidth) / 2)
+    labelSettings.y = labelSettings.height / 2 - 3 // 簡單的垂直置中
+
+    updatePreview()
+}
+
+// 處理連接方式改變 - 包裝函數解決類型問題
+const handleConnectionTypeChange = (value: string | number | boolean | undefined) => {
+    if (typeof value === 'string') {
+        setConnectionType(value as 'usb' | 'network' | 'driver')
+    }
+}
+
+// 自動打印開關
+const isAutoPrintEnabled = ref(true)
+
+// 打印用戶名稱標籤（使用自定義位置）
+const printUserNameLabel = async (userName: string) => {
+    if (!isAutoPrintEnabled.value || !isConnected.value) {
+        console.log('自動打印已關閉或印表機未連接')
+        return false
+    }
+
+    try {
+        const printData: PrintData = {
+            text: userName,
+            fontSize: labelSettings.fontSize,
+            x: labelSettings.x,
+            y: labelSettings.y,
+            rotation: '0',
+            fontStyle: '2', // 粗體
+            fontFamily: 'Arial'
+        }
+
+        const success = await printLabel(printData, 1)
+
+        if (success) {
+            ElMessage.success({
+                message: `已打印 ${userName} 的名牌標籤`,
+                duration: 3000
+            })
+            console.log(`成功打印用戶標籤: ${userName}`)
+        } else {
+            ElMessage.warning({
+                message: '標籤列印失敗，請檢查印表機狀態',
+                duration: 3000
+            })
+        }
+
+        return success
+    } catch (error) {
+        console.error('打印標籤時發生錯誤:', error)
+        ElMessage.error({
+            message: '打印標籤時發生錯誤',
+            duration: 3000
+        })
+        return false
+    }
+}
 
 /**---------------掃碼槍設置----------------- */
 const { startScan, stopScan, isScanning, setScanCallback } = useBarcodeGun({
@@ -283,6 +569,13 @@ const checkin = async () => {
 
         handleUpdateList();
         getCheckData();
+
+        // 自動打印用戶名稱標籤（僅簽到成功時）
+        if (submitCheckData.actionType === 1 && res.data?.attendeesVO?.member?.chineseName) {
+            setTimeout(() => {
+                printUserNameLabel(res.data.attendeesVO.member.chineseName);
+            }, 500); // 延遲500ms確保簽到完成
+        }
 
     } catch (error) {
         // console.log(error);
@@ -399,10 +692,26 @@ const handleSaveLastScrollData = () => {
 
 /**-------------------------------------------------- */
 const isDialogVisible = ref(false);
+const isPrinterConfigVisible = ref(false)
+
 const openDialog = () => {
     isDialogVisible.value = true;
     handleSaveLastScrollData();
 };
+
+// 開啟印表機設定對話框
+const openPrinterConfig = () => {
+    isPrinterConfigVisible.value = true
+    // 等待 DOM 更新後初始化預觽
+    nextTick(() => {
+        updatePreview()
+    })
+}
+
+// 測試列印（使用當前預觽設定）
+const testPrint = async () => {
+    await printUserNameLabel(labelSettings.previewText)
+}
 
 const closeDialog = () => {
     isDialogVisible.value = false;
@@ -587,9 +896,12 @@ onMounted(() => {
 
     // 初始化數據
     getCheckData();
-    closeSidebar();
+    // closeSidebar();
     getAttendeeList();
     updateEveryMinute();
+
+    // 初始化印表機
+    initializePrinters()
 
     console.log('掃碼槍簽到系統已啟動');
 });
