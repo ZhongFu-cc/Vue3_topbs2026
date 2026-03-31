@@ -30,7 +30,7 @@
             <el-popover v-if="scope.row.tagList.length > 0" placement="left-start" title="標籤" :width="200"
               trigger="hover">
               <template #reference>
-                <el-tag v-if="findFirstVaildTag(scope.row.tagList)" size="large" round
+                <el-tag class="column-tag" v-if="findFirstVaildTag(scope.row.tagList)" size="large" round
                   :color="findFirstVaildTag(scope.row.tagList).color" effect="light">{{
                     findFirstVaildTag(scope.row.tagList).name }}</el-tag>
               </template>
@@ -510,9 +510,14 @@ onMounted(() => {
   }
 }
 
-:deep(.el-tag__content) {
-  color: white;
-  font-size: 14px;
+
+// column 和 popover 的tag 設置為白色文字
+.tag-item,
+.column-tag {
+  :deep(.el-tag__content) {
+    color: white;
+    font-size: 14px;
+  }
 }
 
 :deep(.el-tag__close) {
@@ -524,8 +529,12 @@ onMounted(() => {
   width: 100%;
 }
 
+
+
+
 // 設置 table 內的標籤顯示為可滑動區塊
 .tag-popover-box {
   overflow: scroll !important;
+
 }
 </style>

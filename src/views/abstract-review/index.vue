@@ -61,14 +61,23 @@
       <el-divider></el-divider>
     </el-drawer>
 
-    <el-dialog v-model="isRatePaperDialogVisible" title="評分" width="10%">
-      <el-form-item>
-        <el-input-number v-model="submitRateData.score" type="number" :max="maxScore" :min="minScore"></el-input-number>
-      </el-form-item>
-      <el-form-item>
-        <el-button type="primary" @click="ratePaperFn">確定</el-button>
-        <el-button @click="isRatePaperDialogVisible = false">取消</el-button>
-      </el-form-item>
+    <el-dialog class="rate-box" v-model="isRatePaperDialogVisible" title="稿件評分" width="230px">
+
+      <div>
+        <p>最低分為:{{ minScore }} , 最高分為:{{ maxScore }}</p>
+        <p>請於此範圍中評分</p>
+        <el-input-number style="width: 100%" v-model="submitRateData.score" type="number" :max="maxScore"
+          :min="minScore"></el-input-number>
+      </div>
+
+
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="isRatePaperDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="ratePaperFn">確定</el-button>
+        </div>
+      </template>
+
     </el-dialog>
   </main>
 </template>
@@ -78,7 +87,7 @@ import { useUserStore } from '@/store';
 import { tryCatch } from '@/utils/tryCatch';
 
 const maxScore = 100;
-const minScore = 0;
+const minScore = 60;
 
 const router = useRouter();
 
@@ -91,7 +100,7 @@ const currentPage = ref(1);
 const reviewStage = ref('first_review');
 
 const getPaperListByReviewer = async () => {
-  const { res, error } = await tryCatch(getPaperListByReviewerApi(currentPage.value, 10, reviewStage.value))
+  const { res, error } = await tryCatch(getPaperListByReviewerApi(currentPage.value, 1, reviewStage.value))
   if (error) {
     return;
   }
