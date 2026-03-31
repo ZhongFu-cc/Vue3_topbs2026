@@ -34,6 +34,11 @@
 
         </el-table>
       </div>
+
+      <el-pagination layout="prev, pager, next" @current-change="handlePageChange" :page-count="Number(paperList.pages)"
+        :default-page-size="Number(paperList.size)" :hide-on-single-page="false" />
+
+
     </el-card>
 
     <el-drawer v-model="isSeeMoreDialogVisible">
@@ -90,7 +95,6 @@ const maxScore = 100;
 const minScore = 60;
 
 const router = useRouter();
-
 const userStore = useUserStore();
 
 
@@ -99,12 +103,17 @@ const paperList = reactive<any>({});
 const currentPage = ref(1);
 const reviewStage = ref('first_review');
 
+// 頁碼改變時的處理函數
+const handlePageChange = (page: number) => {
+  currentPage.value = page;
+  getPaperListByReviewer();
+}
+
 const getPaperListByReviewer = async () => {
-  const { res, error } = await tryCatch(getPaperListByReviewerApi(currentPage.value, 1, reviewStage.value))
+  const { res, error } = await tryCatch(getPaperListByReviewerApi(currentPage.value, 10, reviewStage.value))
   if (error) {
     return;
   }
-
 
   Object.assign(paperList, res.data);
 }
@@ -180,5 +189,32 @@ onMounted(() => {
 .stage-select {
   width: 200px;
   margin-right: 20px;
+}
+
+/**
+  使用Vue3 element plus 專屬的改變UI組件CSS 寫法 '深層覆蓋'
+  分頁組件引入盒子,重置分頁組件CSS */
+:deep(.el-pagination) {
+
+  justify-content: center;
+
+  //重製將分頁組件背景色調為 '無'
+  .el-pager li {
+    background: none !important;
+  }
+
+  //按鈕背景色改成 '無'
+  button {
+    background: none !important;
+  }
+
+  &+& {
+    margin-top: 10px;
+  }
+
+  .example-demonstration {
+    margin-bottom: 16px;
+  }
+
 }
 </style>
