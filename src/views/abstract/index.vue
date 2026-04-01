@@ -411,6 +411,7 @@ const updateForm = reactive<any>({
 
 const updatePaper = async () => {
   await updatePaperApi(updateForm)
+  ElMessage.success('更新成功');
   isEdit.value = false;
   getPaperList()
 }
