@@ -249,7 +249,11 @@
                                 </h5>
 
                                 <el-form-item label="文字內容">
-                                    <el-input v-model="line.text" placeholder="輸入文字內容" @input="updatePreview" />
+                                    <!-- <el-input v-model="line.text" placeholder="輸入文字內容" @input="updatePreview" /> -->
+                                    <el-select v-model="line.textType" placeholder="選擇文字類型" @change="updatePreview">
+                                        <el-option v-for="option in labelType" :key="option.value" :label="option.label"
+                                            :value="option.value" />
+                                    </el-select>
                                 </el-form-item>
 
                                 <el-row :gutter="20">
@@ -316,7 +320,8 @@
                 <div class="printer-actions">
                     <el-button @click="initializePrinters" :loading="isPrinterLoading">重新整理印表機</el-button>
                     <el-button type="primary" @click="testPrint" :disabled="!isConnected">測試列印</el-button>
-                    <el-button type="success" plain @click="closePrinterConfig">確認</el-button>
+                    <!-- <el-button type="success" plain @click="closePrinterConfig">確認</el-button> -->
+                    <el-button type="success" plain @click="temporaryStore">暫存</el-button>
                 </div>
             </div>
         </el-dialog>
@@ -380,6 +385,18 @@ const {
 })
 
 // 標籤設定和預覽
+
+const labelType = ref([
+    { label: '中文名', value: 'chineseName' },
+    { label: '英文名', value: 'userName' },
+    { label: '會員編號', value: 'sequenceNo' },
+    { label: '單位', value: 'affiliation' },
+    { label: '職稱', value: 'jobTitle' },
+])
+
+const INCH_TO_PX = 96
+const INCH_TO_DOT = 300
+const PX_TO_DOT = INCH_TO_DOT / INCH_TO_PX
 const previewCanvas = ref<HTMLCanvasElement | null>(null)
 const labelSettings = reactive({
     width: 80,      // 標籤寬度 (mm)
@@ -387,15 +404,17 @@ const labelSettings = reactive({
     lines: [
         {
             text: 'English Name', // 第一行文字內容
+            textType: 'userName',
             x: 3,           // 第一行 X 軸位置 (mm)
             y: 2,           // 第一行 Y 軸位置 (mm)
-            fontSize: 120   // 第一行字體大小
+            fontSize: 155   // 第一行字體大小
         },
         {
             text: '中文名', // 第二行文字內容
+            textType: 'chineseName',
             x: 8,           // 第二行 X 軸位置 (mm) - 可獨立設定
             y: 15,          // 第二行 Y 軸位置 (mm) - 可獨立設定
-            fontSize: 100   // 第二行字體大小 - 可獨立設定
+            fontSize: 130   // 第二行字體大小 - 可獨立設定
         }
     ]
 })
@@ -409,6 +428,7 @@ const previewText = computed({
         while (labelSettings.lines.length < Math.max(2, textLines.length)) {
             labelSettings.lines.push({
                 text: '',
+                textType: '',
                 x: 3,
                 y: 2 + (labelSettings.lines.length * 15),
                 fontSize: 120
@@ -449,6 +469,32 @@ watch(
     { deep: true }
 )
 
+let measureCanvas: HTMLCanvasElement | null = null
+let measureCtx: CanvasRenderingContext2D | null = null
+
+const getPreciseWidth = (text: string,
+    fontHeightDots: number,
+    fontStyle: any,
+    faceName: string) => {
+    if (!measureCanvas) {
+        measureCanvas = document.createElement('canvas')
+        measureCtx = measureCanvas.getContext('2d')
+    }
+    if (!measureCtx) return 0
+
+    // 將 mm 轉回瀏覽器像素供測量 (假設 1mm = 3.78px)
+    const fontHeightPx = fontHeightDots / PX_TO_DOT
+    const italic = (fontStyle === '1' || fontStyle === '3') ? 'italic ' : ''
+    const bold = (fontStyle === '2' || fontStyle === '3') ? 'bold ' : ''
+
+    measureCtx.font = `${italic}${bold}${fontHeightPx}px "${faceName}"`
+
+    const metrics = measureCtx.measureText(text)
+    const pureWidthPx = (metrics.actualBoundingBoxRight - metrics.actualBoundingBoxLeft) * 0.85
+
+    return Math.round(pureWidthPx * PX_TO_DOT)
+}
+
 // 計算文字邊界和安全區域 - 支援多行獨立設定
 const textBounds = computed(() => {
     // 考慮TSC印表機的邊距
@@ -463,19 +509,7 @@ const textBounds = computed(() => {
         const lineHeightMm = fontSizeMm * 0.9   // 單行高度
 
         // 計算這一行的寬度
-        let lineWidthMm = 0
-        for (let i = 0; i < line.text.length; i++) {
-            const char = line.text[i]
-            // 檢查是否為中文字符（Unicode範圍）
-            const isChinese = /[\u4e00-\u9fff]/.test(char)
-            if (isChinese) {
-                // 中文字符為正方形，寬度等於高度
-                lineWidthMm += fontSizeMm * 0.85
-            } else {
-                // 英文字符寬度約為高度的一半
-                lineWidthMm += fontSizeMm * 0.45
-            }
-        }
+        const lineWidthMm = getPreciseWidth(line.text, line.fontSize, '0', 'Arial') / 300 * 25.4 // 將字體寬度轉換為毫米
 
         // 計算安全的最大位置（確保文字不會超出標籤邊界）
         const maxX = Math.max(leftMargin, labelSettings.width - lineWidthMm - rightMargin)
@@ -556,9 +590,6 @@ const updatePreview = () => {
     if (!previewCanvas.value) return
 
     console.log(`更新預覽: ${textBounds.value.lineCount} 行文字`)
-    textBounds.value.lines.forEach((line, index) => {
-        console.log(`  第${index + 1}行: "${line.text}" at (${line.x}, ${line.y})mm, 字體${line.fontSize}`)
-    })
 
     const canvas = previewCanvas.value
     const ctx = canvas.getContext('2d')
@@ -653,15 +684,22 @@ const updatePreview = () => {
         const fontHeightPx = fontSize
         const textY = canvasMargin + line.y * scale + fontHeightPx
 
+        ctx.save()
+        const printerScaleX = 0.9 // 水平縮放
+
         // 繪製文字
-        ctx.fillText(line.text, textX, textY)
+        ctx.translate(textX, textY)
+        ctx.scale(printerScaleX, 1) // 水平縮放
+        ctx.fillText(line.text, 0, 0)
+        ctx.restore()
+        // ctx.fillText(line.text, textX, textY)
 
         // 繪製每行的邊界框（顯示實際文字佔用範圍）
         const lineColor = index === 0 ? '#ff9800' : '#00bcd4' // 第一行橙色，第二行青色
         ctx.strokeStyle = lineColor
         ctx.lineWidth = 1
         ctx.setLineDash([2, 2])
-        const textWidthPx = line.textWidthMm * scale
+        const textWidthPx = line.textWidthMm * scale * printerScaleX // 水平縮放後的寬度
         const textHeightPx = line.textHeightMm * scale
         // 邊界框從 Y 座標向上繪製（因為文字是向上延伸的）
         ctx.strokeRect(textX, textY - fontHeightPx, textWidthPx, textHeightPx)
@@ -731,6 +769,8 @@ const updatePreview = () => {
         ctx.fillText('⚠️ 部分文字超出安全範圍!', canvasMargin + labelWidth / 2, canvasMargin + labelHeight / 2 - 8)
         ctx.font = `${canvasFontSizes.value.warningText}px Arial`
         ctx.fillText('請調整文字位置或大小', canvasMargin + labelWidth / 2, canvasMargin + labelHeight / 2 + 10)
+        ctx.font = `${canvasFontSizes.value.warningText}px Arial`
+        ctx.fillText('否則打印會自動調整文字大小', canvasMargin + labelWidth / 2, canvasMargin + labelHeight / 2 + 25)
     }
 }
 
@@ -790,7 +830,7 @@ const centerText = () => {
 
         ctx.font = `bold ${fontSize}px Arial`
         const measuredWidth = ctx.measureText(line.text).width
-        const actualTextWidthMm = measuredWidth / scale // 轉回毫米
+        const actualTextWidthMm = (measuredWidth / scale) * 0.9// 轉回毫米
 
         // 水平置中
         const centerX = usableAreaCenterX - (actualTextWidthMm / 2)
@@ -805,6 +845,7 @@ const centerText = () => {
         line.x = Math.round(line.x * 10) / 10
         line.y = Math.round(line.y * 10) / 10
 
+        console.log(`第${index + 1}行置中後位置: (${line.x}, ${line.y})mm, 文字寬度: ${actualTextWidthMm}mm`)
     })
     updatePreview()
 }
@@ -854,6 +895,7 @@ const updateLabelSize = () => {
 const addNewLine = () => {
     const newLine = {
         text: `第 ${labelSettings.lines.length + 1} 行`,
+        textType: '',
         x: textBounds.value.leftMargin + 1,
         y: textBounds.value.topMargin + 1 + (labelSettings.lines.length * 15),
         fontSize: 120
@@ -906,7 +948,7 @@ const centerLine = (index: number) => {
 
         ctx.font = `bold ${fontSize}px Arial`
         const measuredWidth = ctx.measureText(line.text).width
-        const actualTextWidthMm = measuredWidth / scale
+        const actualTextWidthMm = measuredWidth / scale * 0.9 // 轉回毫米，考慮水平縮放
 
         // 水平置中
         const centerX = usableAreaCenterX - (actualTextWidthMm / 2)
@@ -965,6 +1007,7 @@ const printLabelWithMultiLineSettings = async (lines: Array<{ text: string, x: n
 
         // 設定紙張
         const { width, height } = labelSettings
+        console.log(`設定紙張尺寸: ${width}mm x ${height}mm`)
         tsc.setup(width, height, '4', '12', '0', '3', '0')
 
         console.log('開始打印多行獨立設定:', lines)
@@ -972,7 +1015,7 @@ const printLabelWithMultiLineSettings = async (lines: Array<{ text: string, x: n
         // 為每行設定獨立的文字
         lines.forEach((line, index) => {
             // TSC 印表機補償：向右微調以修正偏左問題  
-            const compensatedX = line.x + 1.0 // 向右偏移 1mm
+            const compensatedX = line.x // 向右偏移 1mm
 
             // 將 mm 轉換為 dots (假設 300 DPI)
             const dpi = 300
@@ -1028,29 +1071,53 @@ const printLabelWithMultiLineSettings = async (lines: Array<{ text: string, x: n
 }
 
 // 打印用戶名稱標籤（使用多行自定義位置）
-const printUserNameLabel = async (firstName: string, lastName: string, chineseName: string) => {
+const printUserNameLabel = async (attendee: any) => {
     if (!isAutoPrintEnabled.value || !isConnected.value) {
         console.log('自動打印已關閉或印表機未連接')
         return false
     }
 
+    const memberInfo = attendee.member || {}
+
     try {
-        lastName = lastName.trim().charAt(0).toUpperCase() + lastName.trim().slice(1).toLowerCase()
+        const lastName = memberInfo.lastName.trim().charAt(0).toUpperCase() + memberInfo.lastName.trim().slice(1).toLowerCase()
         console.log(lastName.trim().charAt(0).toUpperCase())
 
         // 同理處理 firstName (確保結尾沒有 .toUpperCase())
-        firstName = firstName.toLowerCase().replace(/(^|[- ]+)(.)/g, (match, separator, letter) => {
+        const firstName = memberInfo.firstName.trim().toLowerCase().replace(/(^|[- ]+)(.)/g, (match: any, separator: any, letter: any) => {
             return separator + letter.toUpperCase();
         });
 
         const userName = `${firstName} ${lastName}`
         console.log(`準備打印用戶標籤: ${userName}`)
-        labelSettings.lines[0].text = userName
-        if (chineseName) {
-            labelSettings.lines[1].text = chineseName
-        } else {
-            labelSettings.lines[1].text = ''
-        }
+        labelSettings.lines.forEach((line) => {
+            line.text = '' // 先清空所有行文字  
+            switch (line.textType) {
+                case 'userName':
+                    line.text = userName
+                    break
+                case 'chineseName':
+                    line.text = memberInfo.chineseName || ''
+                    break
+                case 'affiliation':
+                    line.text = memberInfo.affiliation || ''
+                    break
+                case 'jobTitle':
+                    line.text = memberInfo.jobTitle || ''
+                    break
+                default:
+                    // 保持原有文字或空白
+                    break
+            }
+        }) // 先清空所有行文字
+
+        console.log()
+        // labelSettings.lines[0].text = userName
+        // if (memberInfo.chineseName) {
+        //     labelSettings.lines[1].text = chineseName
+        // } else {
+        //     labelSettings.lines[1].text = ''
+        // }
         // 使用多行設定來打印
         const lines = labelSettings.lines.filter(line => line.text.trim() !== '')
 
@@ -1235,9 +1302,7 @@ const checkin = async () => {
             console.log(res.data.attendeesVO.member.chineseName);
             setTimeout(() => {
                 printUserNameLabel(
-                    res.data.attendeesVO.member.firstName,
-                    res.data.attendeesVO.member.lastName,
-                    res.data.attendeesVO.member.chineseName
+                    res.data.attendeesVO
                 );
             }, 500); // 延遲500ms確保簽到完成
         }
@@ -1364,6 +1429,34 @@ const openDialog = () => {
     handleSaveLastScrollData();
 };
 
+const temporaryStoredSettings = reactive({
+    labelSettings: labelSettings
+})
+
+const temporaryStore = () => {
+    console.log('臨時存儲當前設定:', JSON.stringify(temporaryStoredSettings.labelSettings))
+    localStorage.setItem('temporaryLabelSettings', JSON.stringify(labelSettings))
+}
+
+const loadTemporaryStoredSettings = () => {
+    const storedSettings = localStorage.getItem('temporaryLabelSettings')
+    if (storedSettings) {
+        try {
+            const parsedSettings = JSON.parse(storedSettings)
+            Object.assign(labelSettings, parsedSettings)
+            console.log('載入臨時存儲的設定:', labelSettings)
+            updatePreview()
+        } catch (error) {
+            console.error('載入臨時存儲設定失敗:', error)
+        }
+    } else {
+        console.log('沒有找到臨時存儲的設定')
+        centerText() // 如果沒有存儲，則執行置中
+        updatePreview()
+    }
+
+}
+
 // 開啟印表機設定對話框
 const openPrinterConfig = () => {
     isPrinterConfigVisible.value = true
@@ -1371,14 +1464,19 @@ const openPrinterConfig = () => {
     stopScan()
     // 等待 DOM 更新後初始化預觽
     nextTick(() => {
-        updatePreview()
+        // centerText()
+        loadTemporaryStoredSettings()
     })
 }
+
+
 
 const closePrinterConfig = () => {
     isPrinterConfigVisible.value = false
     startScan()
 }
+
+
 
 // 測試列印（使用當前預觽設定）
 // 測試列印（使用當前預覽設定）
