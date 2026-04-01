@@ -80,7 +80,10 @@
                         <el-scrollbar ref="scrollRef" @scroll.native="handleScroll">
                             <el-card v-for="item in showAttendeesList" class="checkin-data-card">
                                 <div class="member-info" @click="openDrawer(item)">
-                                    <p class="attendee-name">{{ item.member.chineseName }}</p>
+                                    <p class="attendee-name" v-if="item.member.chineseName">{{ item.member.chineseName
+                                    }}</p>
+                                    <p class="attendee-name" v-else>{{ item.member.firstName }} {{ item.member.lastName
+                                    }}</p>
                                     <p>{{ memberEnums[item.member.category] }}</p>
                                 </div>
                                 <el-icon class="checkin-icon" :class="item.isCheckedIn ? 'checkin' : ''"
@@ -266,8 +269,8 @@
                                     </el-col>
                                     <el-col :span="8">
                                         <el-form-item label="字體大小">
-                                            <el-input-number v-model="line.fontSize" :min="40" :max="200" :step="10"
-                                                size="small" @change="updatePreview" />
+                                            <el-input-number v-model="line.fontSize" :min="40" :step="10" size="small"
+                                                @change="updatePreview" />
                                         </el-form-item>
                                     </el-col>
                                 </el-row>
@@ -279,7 +282,7 @@
                                                 textBounds.lines[index]?.maxX || textBounds.leftMargin }}mm</span>
                                             <br>
                                             <span class="size-info">文字寬: {{ textBounds.lines[index]?.textWidthMm || 0
-                                            }}mm</span>
+                                                }}mm</span>
                                         </div>
                                     </el-col>
                                     <el-col :span="12">
@@ -288,12 +291,12 @@
                                                 textBounds.lines[index]?.maxY || textBounds.topMargin }}mm</span>
                                             <br>
                                             <span class="size-info">文字高: {{ textBounds.lines[index]?.textHeightMm || 0
-                                            }}mm</span>
+                                                }}mm</span>
                                         </div>
                                     </el-col>
                                 </el-row>
 
-                                <div class="line-actions" style="marginTop: 10px;">
+                                <div class="line-actions" style="margin-top: 10px;">
                                     <el-button size="small" @click="resetLinePlosition(index)">重置此行</el-button>
                                     <el-button size="small" @click="centerLine(index)">置中此行</el-button>
                                     <el-button v-if="labelSettings.lines.length > 1" size="small" type="danger"
@@ -313,6 +316,7 @@
                 <div class="printer-actions">
                     <el-button @click="initializePrinters" :loading="isPrinterLoading">重新整理印表機</el-button>
                     <el-button type="primary" @click="testPrint" :disabled="!isConnected">測試列印</el-button>
+                    <el-button type="success" plain @click="closePrinterConfig">確認</el-button>
                 </div>
             </div>
         </el-dialog>
@@ -801,19 +805,7 @@ const centerText = () => {
         line.x = Math.round(line.x * 10) / 10
         line.y = Math.round(line.y * 10) / 10
 
-        console.log(`第${index + 1}行 "${line.text}":`)
-        console.log(`  置中位置: (${line.x}, ${line.y})mm`)
     })
-
-    console.log('多行置中計算結果:', {
-        標籤尺寸: `${labelSettings.width} × ${labelSettings.height}mm`,
-        可用區域: `${usableWidth} × ${usableHeight}mm`,
-        可用中心: `(${usableAreaCenterX.toFixed(1)}, ${usableAreaCenterY.toFixed(1)})`,
-        行位置: labelSettings.lines.map((line, index) =>
-            `第${index + 1}行: "${line.text}" at (${line.x}, ${line.y})mm`
-        )
-    })
-
     updatePreview()
 }
 
@@ -854,9 +846,6 @@ const updateLabelSize = () => {
             }
         })
 
-        console.log(`標籤尺寸更新後位置調整:`, labelSettings.lines.map((line, index) =>
-            `第${index + 1}行: (${line.x}, ${line.y})mm`
-        ).join(', '))
         updatePreview()
     })
 }
@@ -870,7 +859,6 @@ const addNewLine = () => {
         fontSize: 120
     }
     labelSettings.lines.push(newLine)
-    console.log('新增行:', newLine)
     updatePreview()
 }
 
@@ -878,7 +866,6 @@ const addNewLine = () => {
 const removeLine = (index: number) => {
     if (labelSettings.lines.length > 1) {
         labelSettings.lines.splice(index, 1)
-        console.log(`刪除第 ${index + 1} 行`)
         updatePreview()
     }
 }
@@ -888,7 +875,6 @@ const resetLinePlosition = (index: number) => {
     if (index >= 0 && index < labelSettings.lines.length) {
         labelSettings.lines[index].x = textBounds.value.leftMargin + 1
         labelSettings.lines[index].y = textBounds.value.topMargin + 1 + (index * 15)
-        console.log(`重置第 ${index + 1} 行位置: (${labelSettings.lines[index].x}, ${labelSettings.lines[index].y})mm`)
         updatePreview()
     }
 }
@@ -929,8 +915,6 @@ const centerLine = (index: number) => {
         line.x = Math.max(textBounds.value.leftMargin, Math.min(centerX, lineInfo.maxX))
         line.x = Math.round(line.x * 10) / 10
 
-        console.log(`置中第 ${index + 1} 行: "${line.text}"`)
-        console.log(`  置中位置: (${line.x}, ${line.y})mm`)
         updatePreview()
     }
 }
@@ -1044,16 +1028,29 @@ const printLabelWithMultiLineSettings = async (lines: Array<{ text: string, x: n
 }
 
 // 打印用戶名稱標籤（使用多行自定義位置）
-const printUserNameLabel = async (userName: string) => {
+const printUserNameLabel = async (firstName: string, lastName: string, chineseName: string) => {
     if (!isAutoPrintEnabled.value || !isConnected.value) {
         console.log('自動打印已關閉或印表機未連接')
         return false
     }
 
     try {
-        console.log(`打印用戶標籤準備:`)
-        console.log(`  用戶名: "${userName}"`)
+        lastName = lastName.trim().charAt(0).toUpperCase() + lastName.trim().slice(1).toLowerCase()
+        console.log(lastName.trim().charAt(0).toUpperCase())
 
+        // 同理處理 firstName (確保結尾沒有 .toUpperCase())
+        firstName = firstName.toLowerCase().replace(/(^|[- ]+)(.)/g, (match, separator, letter) => {
+            return separator + letter.toUpperCase();
+        });
+
+        const userName = `${firstName} ${lastName}`
+        console.log(`準備打印用戶標籤: ${userName}`)
+        labelSettings.lines[0].text = userName
+        if (chineseName) {
+            labelSettings.lines[1].text = chineseName
+        } else {
+            labelSettings.lines[1].text = ''
+        }
         // 使用多行設定來打印
         const lines = labelSettings.lines.filter(line => line.text.trim() !== '')
 
@@ -1068,7 +1065,6 @@ const printUserNameLabel = async (userName: string) => {
                 fontStyle: '2', // 粗體
                 fontFamily: 'Arial'
             }
-            console.log('使用預設設定:', printData)
             const success = await printLabel(printData, 1)
 
             if (success) {
@@ -1086,17 +1082,27 @@ const printUserNameLabel = async (userName: string) => {
             return success
         } else {
             // 使用多行獨立設定打印
-            // 第一行使用實際用戶名，其餘行保持原設定
-            const printLines = lines.map((line, index) => ({
-                text: index === 0 ? userName : line.text,
+            // 暫時更新第一行文字為用戶名以進行置中計算
+            const originalFirstLineText = lines[0].text
+            labelSettings.lines[0].text = userName
+
+            // 重新計算置中位置 (基於實際的用戶名)
+            centerText()
+
+            // 準備打印資料：第一行使用用戶名，其餘行保持原設定
+            const printLines = labelSettings.lines.slice(0, lines.length).map((line, index) => ({
+                text: index === 0 ? userName : lines[index].text,
                 x: line.x,
                 y: line.y,
                 fontSize: line.fontSize
             }))
 
-            console.log(`多行獨立打印設定:`, printLines)
+            console.log(`多行獨立打印設定 (置中後):`, printLines)
 
             const success = await printLabelWithMultiLineSettings(printLines)
+
+            // 恢復原始第一行文字
+            labelSettings.lines[0].text = originalFirstLineText
 
             if (success) {
                 ElMessage.success({
@@ -1193,10 +1199,8 @@ const checkOut = async () => {
 
 const checkin = async () => {
     try {
-        console.log(submitCheckData);
         let res = await checkinApi(submitCheckData);
         Object.assign(member, res.data);
-        console.log("res", res);
         let category = "";
         switch (res.data.attendeesVO.member.category) {
             case 1:
@@ -1204,7 +1208,6 @@ const checkin = async () => {
                 break;
         }
 
-        console.log(res.data.attendeesVO.isLastYearAttendee);
         const type = submitCheckData.actionType == 1 ? "簽到成功" : "簽退成功";
         if (res.data.attendeesVO.isLastYearAttendee) {
             ElNotification({
@@ -1228,9 +1231,14 @@ const checkin = async () => {
         getCheckData();
 
         // 自動打印用戶名稱標籤（僅簽到成功時）
-        if (submitCheckData.actionType === 1 && res.data?.attendeesVO?.member?.chineseName) {
+        if (submitCheckData.actionType === 1 && res.data?.attendeesVO?.member) {
+            console.log(res.data.attendeesVO.member.chineseName);
             setTimeout(() => {
-                printUserNameLabel(res.data.attendeesVO.member.chineseName);
+                printUserNameLabel(
+                    res.data.attendeesVO.member.firstName,
+                    res.data.attendeesVO.member.lastName,
+                    res.data.attendeesVO.member.chineseName
+                );
             }, 500); // 延遲500ms確保簽到完成
         }
 
