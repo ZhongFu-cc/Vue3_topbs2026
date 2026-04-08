@@ -480,6 +480,7 @@ const importExcelResultDialogState = ref({
   }
 })
 
+const uploadRef = ref();
 const uploadFileList = ref<any>([]);
 const handleUpload: UploadProps['onChange'] = (file: UploadUserFile, uploadFiles) => {
   if (file.size == 0) {
@@ -501,6 +502,8 @@ const handleRemove: UploadProps['onRemove'] = (file, fileList) => {
   uploadFileList.value = fileList;
 }
 
+
+
 const handleImportExcel = async () => {
   try {
     const data = new FormData();
@@ -512,6 +515,9 @@ const handleImportExcel = async () => {
     importExcelResultDialogState.value.openDialog(res.data);
     // getPaperList();
     // importExcelDialogState.value.closeDialog();
+    // 清空組件內的文件列表
+    uploadRef.value?.clearFiles();
+    // 清空實際儲存的文件列表
     uploadFileList.value = [];
     console.log(res);
   } catch (error) {
