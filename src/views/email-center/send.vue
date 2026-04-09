@@ -220,10 +220,27 @@ const getDataAndEditorLoaded = async () => {
           name: '通訊作者信箱',
           value: '{{correspondingAuthorEmail}}',
         },
-        correspondingAuthorAffiliation: {
-          name: '通訊作者所屬單位',
-          value: '{{correspondingAuthorAffiliation}}',
+        publicationNumber: {
+          name: '發表編號',
+          value: '{{publicationNumber}}',
         },
+        publicationGroup: {
+          name: '發表組別',
+          value: '{{publicationGroup}}',
+        },
+        reportLocation: {
+          name: '報告地點',
+          value: '{{reportLocation}}',
+        },
+        reportTime: {
+          name: '報告時間',
+          value: '{{reportTime}}',
+        },
+        presentationType: {
+          name: '報告方式',
+          value: '{{presentationType}}',
+        },
+
       }
       break;
     case 'all':
