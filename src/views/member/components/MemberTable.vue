@@ -56,7 +56,7 @@
       </el-table-column>
 
 
-      <el-table-column label="操作" width="200">
+      <el-table-column fixed="right" label="操作" width="200">
         <!-- 透過#default="scope" , 獲取到當前的對象值 , scope.row則是拿到當前那個row的數據  -->
         <template #default="scope">
           <div v-if="isIndexView">
