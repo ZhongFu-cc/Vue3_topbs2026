@@ -129,3 +129,6 @@ async function initializeRoutes() {
     isAddingRoutes = false;
   }
 }
+
+// Authorization
+// Bearer 5a151e77-bf5d-4422-80a8-1960716060e0
