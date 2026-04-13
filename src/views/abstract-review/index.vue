@@ -5,6 +5,12 @@
         <h1>Abstract Review</h1>
       </div>
       <div class="function-bar">
+        <div class="paper-count">
+          <el-tag type="info">總稿件: {{ paperCount.total }}</el-tag>
+          <el-tag type="warning">待審核: {{ paperCount.pedding }}</el-tag>
+          <el-tag type="success">已審核: {{ paperCount.reviewed }}</el-tag>
+        </div>
+
         <el-form-item class="stage-select-form" label="審核階段:">
           <el-select class="stage-select" placeholder="Select Review Stage" v-model="reviewStage"
             @change="getPaperListByReviewer">
@@ -103,19 +109,47 @@ const paperList = reactive<any>({});
 const currentPage = ref(1);
 const reviewStage = ref('first_review');
 
+const getStageFromLocalStorage = () => {
+  const storedStage = localStorage.getItem('stage');
+  if (storedStage) {
+    reviewStage.value = storedStage === '1' ? 'first_review' : 'second_review';
+    getPaperListByReviewer();
+  }
+}
+
 // 頁碼改變時的處理函數
 const handlePageChange = (page: number) => {
   currentPage.value = page;
   getPaperListByReviewer();
 }
 
+const paperCount = ref({
+  pedding: 0,
+  reviewed: 0,
+  total: 0
+})
+
 const getPaperListByReviewer = async () => {
+  console.log(reviewStage.value)
   const { res, error } = await tryCatch(getPaperListByReviewerApi(currentPage.value, 10, reviewStage.value))
   if (error) {
     return;
   }
 
   Object.assign(paperList, res.data);
+  console.log(paperList)
+
+  paperCount.value.pedding = 0;
+  paperCount.value.reviewed = 0;
+  paperCount.value.total = 0;
+  res.data.records.forEach((item: any) => {
+    paperCount.value.total += 1;
+    if (item.score === null) {
+      paperCount.value.pedding += 1;
+    } else {
+      paperCount.value.reviewed += 1;
+    }
+  })
 }
 
 const downloadFileFromMinio = (file: any) => {
@@ -164,11 +198,15 @@ const ratePaperFn = async () => {
     return;
   }
   isRatePaperDialogVisible.value = false;
-  getPaperListByReviewer();
+  await getPaperListByReviewer();
+
+  if (paperCount.value.pedding === 0) {
+    ElMessage.success('所有稿件已審核完成');
+  }
 }
 
 onMounted(() => {
-  getPaperListByReviewer();
+  getStageFromLocalStorage();
 });
 
 </script>
@@ -177,6 +215,13 @@ onMounted(() => {
 .main-card {
   width: 100%;
   min-height: 100vh;
+
+  .function-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
 }
 
 .stage-select-form {
