@@ -231,7 +231,8 @@ export const adminDynamicRoutes: RouteRecordRaw[] = [
     children: [
       {
         path: "/abstract-manage",
-        component: () => import("@/views/abstract/index.vue"),
+        // component: () => import("@/views/abstract/index.vue"),
+        component: () => import("@/views/abstract/paperList.vue"),
         name: "abstract-manage",
         meta: {
           title: "稿件列表",
@@ -243,12 +244,13 @@ export const adminDynamicRoutes: RouteRecordRaw[] = [
       },
       {
         path: "/distribution",
-        component: () => import("@/views/abstract/distribution.vue"),
+        // component: () => import("@/views/abstract/distribution.vue"),
+        component: () => import("@/views/abstract/assign.vue"),
         name: "abstract-distribution1",
         meta: {
           title: "稿件分發",
           icon: "el-icon-PriceTag",
-          hidden: true,
+          hidden: false,
           roles: ["ADMIN"],
           keepAlive: true,
         },
