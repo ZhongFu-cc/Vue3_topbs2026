@@ -250,9 +250,10 @@
 
                                 <el-form-item label="文字內容">
                                     <!-- <el-input v-model="line.text" placeholder="輸入文字內容" @input="updatePreview" /> -->
-                                    <el-select v-model="line.textType" placeholder="選擇文字類型" @change="updatePreview">
+                                    <el-select v-model="line.textInfo" placeholder="選擇文字類型" @change="updateShowLabel"
+                                        value-key="textShow">
                                         <el-option v-for="option in labelType" :key="option.value" :label="option.label"
-                                            :value="option.value" />
+                                            :value="option" />
                                     </el-select>
                                 </el-form-item>
 
@@ -387,11 +388,11 @@ const {
 // 標籤設定和預覽
 
 const labelType = ref([
-    { label: '中文名', value: 'chineseName' },
-    { label: '英文名', value: 'userName' },
-    { label: '會員編號', value: 'sequenceNo' },
-    { label: '單位', value: 'affiliation' },
-    { label: '職稱', value: 'jobTitle' },
+    { label: '中文名', value: 'chineseName', textType: 'chineseName', textShow: '中文名' },
+    { label: '英文名', value: 'userName', textType: 'userName', textShow: 'English Name' },
+    { label: '會員編號', value: 'sequenceNo', textType: 'sequenceNo', textShow: '會員編號' },
+    { label: '單位', value: 'affiliation', textType: 'affiliation', textShow: '單位' },
+    { label: '職稱', value: 'jobTitle', textType: 'jobTitle', textShow: '職稱' },
 ])
 
 const INCH_TO_PX = 96
@@ -405,6 +406,10 @@ const labelSettings = reactive({
         {
             text: 'English Name', // 第一行文字內容
             textType: 'userName',
+            textInfo: {
+                textType: 'userName',
+                textShow: 'English Name'
+            },
             x: 3,           // 第一行 X 軸位置 (mm)
             y: 2,           // 第一行 Y 軸位置 (mm)
             fontSize: 155   // 第一行字體大小
@@ -412,39 +417,15 @@ const labelSettings = reactive({
         {
             text: '中文名', // 第二行文字內容
             textType: 'chineseName',
+            textInfo: {
+                textType: 'chineseName',
+                textShow: '中文名'
+            },
             x: 8,           // 第二行 X 軸位置 (mm) - 可獨立設定
             y: 15,          // 第二行 Y 軸位置 (mm) - 可獨立設定
             fontSize: 130   // 第二行字體大小 - 可獨立設定
         }
     ]
-})
-
-// 為了相容性保留的 computed 屬性
-const previewText = computed({
-    get: () => labelSettings.lines.map(line => line.text).join('\n'),
-    set: (value: string) => {
-        const textLines = value.split('\n')
-        // 確保至少有兩行
-        while (labelSettings.lines.length < Math.max(2, textLines.length)) {
-            labelSettings.lines.push({
-                text: '',
-                textType: '',
-                x: 3,
-                y: 2 + (labelSettings.lines.length * 15),
-                fontSize: 120
-            })
-        }
-        // 更新現有行的文字
-        textLines.forEach((text, index) => {
-            if (index < labelSettings.lines.length) {
-                labelSettings.lines[index].text = text
-            }
-        })
-        // 移除多餘的空行
-        labelSettings.lines = labelSettings.lines.filter((line, index) =>
-            index < textLines.length || line.text.trim() !== ''
-        )
-    }
 })
 
 // 監聽 labelSettings 變化並更新 labelConfig
@@ -585,11 +566,20 @@ const canvasFontSizes = computed(() => {
     }
 })
 
+
+const updateShowLabel = () => {
+    labelSettings.lines.forEach(line => {
+        line.text = line.textInfo.textShow
+    })
+    updatePreview()
+}
+
 // 更新預覽畫面
 const updatePreview = () => {
     if (!previewCanvas.value) return
 
     console.log(`更新預覽: ${textBounds.value.lineCount} 行文字`)
+    console.log('文字邊界信息:', labelSettings.lines)
 
     const canvas = previewCanvas.value
     const ctx = canvas.getContext('2d')
@@ -896,6 +886,10 @@ const addNewLine = () => {
     const newLine = {
         text: `第 ${labelSettings.lines.length + 1} 行`,
         textType: '',
+        textInfo: {
+            textType: '',
+            textShow: `第 ${labelSettings.lines.length + 1} 行`
+        },
         x: textBounds.value.leftMargin + 1,
         y: textBounds.value.topMargin + 1 + (labelSettings.lines.length * 15),
         fontSize: 120
@@ -1077,6 +1071,8 @@ const printUserNameLabel = async (attendee: any) => {
         return false
     }
 
+    console.log(labelSettings.lines)
+
     const memberInfo = attendee.member || {}
 
     try {
@@ -1092,7 +1088,7 @@ const printUserNameLabel = async (attendee: any) => {
         console.log(`準備打印用戶標籤: ${userName}`)
         labelSettings.lines.forEach((line) => {
             line.text = '' // 先清空所有行文字  
-            switch (line.textType) {
+            switch (line.textInfo.textType) {
                 case 'userName':
                     line.text = userName
                     break
@@ -1111,7 +1107,6 @@ const printUserNameLabel = async (attendee: any) => {
             }
         }) // 先清空所有行文字
 
-        console.log()
         // labelSettings.lines[0].text = userName
         // if (memberInfo.chineseName) {
         //     labelSettings.lines[1].text = chineseName
@@ -1151,14 +1146,15 @@ const printUserNameLabel = async (attendee: any) => {
             // 使用多行獨立設定打印
             // 暫時更新第一行文字為用戶名以進行置中計算
             const originalFirstLineText = lines[0].text
-            labelSettings.lines[0].text = userName
+            // labelSettings.lines[0].text = userName
 
+            console.log(lines)
             // 重新計算置中位置 (基於實際的用戶名)
             centerText()
 
             // 準備打印資料：第一行使用用戶名，其餘行保持原設定
             const printLines = labelSettings.lines.slice(0, lines.length).map((line, index) => ({
-                text: index === 0 ? userName : lines[index].text,
+                text: lines[index].text,
                 x: line.x,
                 y: line.y,
                 fontSize: line.fontSize
@@ -1299,12 +1295,20 @@ const checkin = async () => {
 
         // 自動打印用戶名稱標籤（僅簽到成功時）
         if (submitCheckData.actionType === 1 && res.data?.attendeesVO?.member) {
-            console.log(res.data.attendeesVO.member.chineseName);
-            setTimeout(() => {
-                printUserNameLabel(
-                    res.data.attendeesVO
-                );
-            }, 500); // 延遲500ms確保簽到完成
+            try {
+                // 1. 等待設定載入完成
+                await nextTick(() => {
+                    loadTemporaryStoredSettings();
+                }); // 確保設定更新後 DOM 也更新
+                // 2. 設定載入後，可以稍微給予 DOM 或狀態更新一點點時間 (選用)
+                // 如果 loadTemporaryStoredSettings 只是純資料存取，這行甚至可以省略
+                await new Promise(resolve => setTimeout(resolve, 100));
+                console.log(labelSettings.lines)
+                // 3. 執行打印
+                printUserNameLabel(res.data.attendeesVO);
+            } catch (error) {
+                console.error("載入設定或列印失敗:", error);
+            }
         }
 
     } catch (error) {
@@ -1360,7 +1364,6 @@ const percentage = ref(0);
 const getCheckData = async () => {
     try {
         let res = await getCheckDataApi();
-        console.log("res", res);
         percentage.value = Math.round(
             (res.data.totalCheckedIn / res.data.totalShouldAttend) * 100
         );
@@ -1612,7 +1615,6 @@ const getAttendeeListForPage = async (page: number) => {
             10,
             queryText.value
         );
-        console.log("getAttendeeListForPage", res);
         total.value = res.data.total;
         return res.data || [];
     } catch (error) {
