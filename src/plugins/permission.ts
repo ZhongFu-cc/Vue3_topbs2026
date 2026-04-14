@@ -24,7 +24,7 @@ export async function setupPermission() {
     const permissionStore = usePermissionStore();
 
     if (!hasToken) {
-      if (whiteList.includes(to.path)) {
+      if (whiteList.some(path => to.path.startsWith(path))) {
         next();
       } else {
         // 不在白名單且沒有token

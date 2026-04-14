@@ -28,7 +28,7 @@ export const constantRoutes: RouteRecordRaw[] = [
     meta: { hidden: true },
   },
   {
-    path: "/reviewer-login",
+    path: "/reviewer-login/:stage",
     component: () => import("@/views/login/reviewerLogin.vue"),
     meta: { hidden: true },
   },
@@ -611,7 +611,7 @@ export const reviewerDynamicRoutes: RouteRecordRaw[] = [
     },
     children: [
       {
-        path: "/abstract-review",
+        path: "/abstract-review/:stage",
         component: () => import("@/views/abstract-review/index.vue"),
         name: "abstractReview",
         meta: {
@@ -657,7 +657,8 @@ export function resetRouter() {
 }
 
 export function resetReviewerRouter() {
-  router.replace({ path: "/reviewer-login" })
+  const stage = localStorage.getItem("stage") || "1";
+  router.replace({ path: `/reviewer-login/${stage}` });
 };
 
 export default router;

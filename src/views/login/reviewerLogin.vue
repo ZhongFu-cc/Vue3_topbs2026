@@ -85,6 +85,7 @@ const settingsStore = useSettingsStore();
 // Internationalization
 const { t } = useI18n();
 
+
 // Reactive states
 const isDark = ref(settingsStore.theme === ThemeEnum.DARK);
 const icpVisible = ref(true);
@@ -132,6 +133,20 @@ const loginRules = computed(() => {
  * 登录
  */
 const route = useRoute();
+
+const stage = ref<string>(route.params.stage as string);
+const setLocalStorageStage = (value: string) => {
+  console.log("Setting stage in localStorage:", value);
+  localStorage.setItem("stage", value);
+};
+
+watch(stage, (newStage) => {
+  setLocalStorageStage(newStage);
+}, { immediate: true }
+);
+
+
+
 
 function handleLogin() {
   loginFormRef.value.validate((valid: boolean) => {
