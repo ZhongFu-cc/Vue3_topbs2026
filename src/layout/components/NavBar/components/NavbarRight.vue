@@ -106,8 +106,7 @@ function reviewerLogout() {
         tagsViewStore.delAllViews();
       })
       .then(() => {
-        const stage = localStorage.getItem("stage") || "1";
-        router.push(`/reviewer-login/${stage}?redirect=${route.fullPath}`);
+        router.push(`/reviewer-login?redirect=${route.fullPath}`);
         console.log(route.fullPath)
       });
   });
