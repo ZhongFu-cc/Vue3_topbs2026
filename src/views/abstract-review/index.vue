@@ -108,9 +108,10 @@ const paperList = reactive<any>({});
 
 const currentPage = ref(1);
 const reviewStage = ref('');
-
+// http://localhost:3001/background/reviewer-login?redirect=/abstract-review?stage=2
 const initStageFromQuery = () => {
   const stage = route.query.stage;
+  console.log('Query parameter stage:', stage);
 
   if (stage == '2') {
     reviewStage.value = 'second_review';
