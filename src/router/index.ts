@@ -621,6 +621,7 @@ export const reviewerDynamicRoutes: RouteRecordRaw[] = [
           roles: ["ADMIN"],
           keepAlive: true,
         },
+        props: true,
       },
     ]
   },
@@ -657,7 +658,9 @@ export function resetRouter() {
 }
 
 export function resetReviewerRouter() {
-  router.replace({ path: "/reviewer-login" })
+  router.replace({
+    path: "/reviewer-login"
+  });
 };
 
 export default router;
