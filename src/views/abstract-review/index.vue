@@ -5,6 +5,12 @@
         <h1>Abstract Review</h1>
       </div>
       <div class="function-bar">
+        <div class="paper-count">
+          <el-tag type="info">總稿件: {{ paperCount.toBeReviewedCount }}</el-tag>
+          <el-tag type="warning">待審核: {{ paperCount.notReviewedCount }}</el-tag>
+          <el-tag type="success">已審核: {{ paperCount.reviewedCount }}</el-tag>
+        </div>
+
         <el-form-item class="stage-select-form" label="審核階段:">
           <el-select class="stage-select" placeholder="Select Review Stage" v-model="reviewStage"
             @change="getPaperListByReviewer">
@@ -35,8 +41,8 @@
         </el-table>
       </div>
 
-      <el-pagination layout="prev, pager, next" @current-change="handlePageChange" :page-count="Number(paperList.pages)"
-        :default-page-size="Number(paperList.size)" :hide-on-single-page="false" />
+      <el-pagination layout="prev, pager, next" @current-change="handlePageChange" :total="Number(paperList.total)"
+        :page-size="Number(paperList.size)" :hide-on-single-page="false" />
 
 
     </el-card>
@@ -87,36 +93,87 @@
   </main>
 </template>
 <script lang="ts" setup>
-import { getPaperListByReviewerApi, paperReviewApi } from '@/api/abstract-reviewer';
+import { getPaperListByReviewerApi, paperReviewApi, getReviewStatsApi } from '@/api/abstract-reviewer';
 import { useUserStore } from '@/store';
 import { tryCatch } from '@/utils/tryCatch';
+import type { Action } from 'element-plus'
 
 const maxScore = 100;
 const minScore = 60;
 
-const router = useRouter();
+const route = useRoute();
 const userStore = useUserStore();
-
 
 const paperList = reactive<any>({});
 
 const currentPage = ref(1);
-const reviewStage = ref('first_review');
+const reviewStage = ref('');
+// http://localhost:3001/background/reviewer-login?redirect=/abstract-review?stage=2
+const initStageFromQuery = () => {
+  const stage = route.query.stage;
+  console.log('Query parameter stage:', stage);
+
+  if (stage == '2') {
+    reviewStage.value = 'second_review';
+  } else {
+    reviewStage.value = 'first_review';
+  }
+
+};
 
 // 頁碼改變時的處理函數
 const handlePageChange = (page: number) => {
+  // console.log('Page changed to:', page);
   currentPage.value = page;
   getPaperListByReviewer();
 }
 
-const getPaperListByReviewer = async () => {
-  const { res, error } = await tryCatch(getPaperListByReviewerApi(currentPage.value, 10, reviewStage.value))
+
+
+
+const paperCount = ref({
+  // 應審核的稿件數量
+  toBeReviewedCount: 0,
+  // 已審核的稿件數量
+  reviewedCount: 0,
+  // 未審核的稿件數量
+  notReviewedCount: 0
+})
+
+const getReviewStats = async () => {
+  const { res, error } = await tryCatch(getReviewStatsApi(reviewStage.value));
   if (error) {
     return;
   }
 
-  Object.assign(paperList, res.data);
+  Object.assign(paperCount.value, res.data);
 }
+
+const getPaperListByReviewer = async () => {
+  console.log(reviewStage.value)
+  const { res, error } = await tryCatch(getPaperListByReviewerApi(currentPage.value, 10, reviewStage.value))
+  if (error) {
+    return;
+  }
+  Object.assign(paperList, res.data);
+  // 每次獲取稿件列表後，同步更新統計數據
+  getReviewStats();
+
+  // 如果沒有待審核的稿件，顯示提示框，告知審核已完成
+  if (paperCount.value.notReviewedCount === 0) {
+    ElMessageBox.alert('所有稿件已審核完成', '審核完畢', {
+      confirmButtonText: 'OK',
+      callback: (action: Action) => {
+        // ElMessage({
+        //   type: 'info',
+        //   message: `action: ${action}`,
+        // })
+      },
+    })
+  }
+}
+
+
 
 const downloadFileFromMinio = (file: any) => {
   const minioUrl = import.meta.env.VITE_MINIO_API_URL;
@@ -164,10 +221,13 @@ const ratePaperFn = async () => {
     return;
   }
   isRatePaperDialogVisible.value = false;
-  getPaperListByReviewer();
+  await getPaperListByReviewer();
+
+
 }
 
 onMounted(() => {
+  initStageFromQuery();
   getPaperListByReviewer();
 });
 
@@ -177,6 +237,13 @@ onMounted(() => {
 .main-card {
   width: 100%;
   min-height: 100vh;
+
+  .function-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
 }
 
 .stage-select-form {
