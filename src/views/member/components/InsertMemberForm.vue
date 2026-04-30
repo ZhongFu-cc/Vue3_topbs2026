@@ -28,6 +28,10 @@
       <el-form-item v-if="data.country !== 'Taiwan'" label="中文姓名">
         <el-input v-model="data.chineseName" placeholder="中文名" />
       </el-form-item>
+      <el-form-item label="身分證字號/護照號碼" prop="idCard" :rules="data.country === 'Taiwan' ? idCardRules : passportRules">
+        <el-input v-model="data.idCard" placeholder="身份證字號/護照號碼" />
+      </el-form-item>
+
       <el-form-item label="E-mail" prop="email" :rules="emailRules">
         <el-input v-model="data.email" placeholder="E-mail" />
       </el-form-item>
