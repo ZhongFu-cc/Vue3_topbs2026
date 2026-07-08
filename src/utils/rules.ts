@@ -29,7 +29,7 @@ const codeMap: Record<string, number> = {
   Z: 33,
 };
 
-const checkIdCard = (rule: any, value: string, callback: any) => {
+export const checkIdCard = (rule: any, value: string, callback: any) => {
   if (!/^[A-Z][0-9]{9}$/.test(value)) {
     callback({ valid: false, message: "身份證格式不正確" });
   }
