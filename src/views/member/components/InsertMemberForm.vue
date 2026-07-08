@@ -1,6 +1,6 @@
 <template>
   <div class="insert-member-form-box">
-    <el-form class="insert-form" :model="data" ref="formRef" label-position="top">
+    <el-form class="insert-form" :model="data" ref="formRef" label-position="top" validate-on-rule-change>
       <el-form-item label="國家" prop="country" :rules="countryRules">
         <el-select v-model="data.country" filterable placeholder="國家">
           <el-option v-for="item in countries" :value="item" :label="item" :key="item"></el-option>
@@ -47,7 +47,7 @@
       <el-form-item label="職稱" prop="jobTitle" :rules="jobTitleRules">
         <el-input v-model="data.jobTitle" placeholder="職稱" />
       </el-form-item>
-      <!-- <el-form-item label="身份證字號/護照號碼" prop="idCard" :rules="data.country === 'Taiwan' ? idCardRules : passportRules">
+      <el-form-item label="身份證字號/護照號碼" prop="idCard" :rules="idCardRules">
         <el-input v-model="data.idCard" placeholder="身份證字號/護照號碼" />
       </el-form-item> -->
       <div class="phone-section">
@@ -93,7 +93,7 @@ import { Member } from '@/api/member/type';
 import { FormInstance } from 'element-plus';
 import countriesData from '@/assets/data/countries.json'
 
-import { firstNameRules, lastNameRules, countryCodeRules, countryRules, affiliationRules, jobTitleRules, chineseNameRules, passwordRules, categoryRules, emailRules, idCardRules, phoneRules, titleRules, passportRules } from '@/utils/rules'
+import { firstNameRules, lastNameRules, countryCodeRules, countryRules, affiliationRules, jobTitleRules, chineseNameRules, passwordRules, categoryRules, emailRules, phoneRules, titleRules, passportRules, checkIdCard } from '@/utils/rules'
 import { addVipMemberApi } from '@/api/member';
 const countries = ref(countriesData)
 
@@ -124,6 +124,17 @@ const emits = defineEmits<{
   (e: 'close'): void;
   (e: 'cancel'): void;
 }>();
+
+console.log('data', data.value.country)
+const idCardRules =
+  computed(() => [
+    {
+      required: data.value.country === 'Taiwan',
+      validator: checkIdCard,
+      trigger: 'blur'
+    }
+  ])
+
 
 
 const submitInsertForm = (form: FormInstance | undefined) => {

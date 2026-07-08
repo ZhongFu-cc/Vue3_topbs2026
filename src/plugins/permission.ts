@@ -15,6 +15,7 @@ export async function setupPermission() {
 
   router.beforeEach(async (to, from, next) => {
     NProgress.start();
+    console.log("to.path", to.path);
 
     const isAdminLogin = localStorage.getItem("Authorization") ? true : false;
     const isReviewerLogin = localStorage.getItem("Authorization-paper-reviewer") ? true : false;
