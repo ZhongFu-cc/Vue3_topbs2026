@@ -113,11 +113,11 @@ export const categoryRules = [
 ];
 
 export const countryCodeRules = [
-  { required: false, message: "國碼不能為空", trigger: "change" },
+  { required: true, message: "國碼不能為空", trigger: "change" },
 ];
 
 export const phoneRules = [
-  { required: false, message: "電話不能為空", trigger: "blur" },
+  { required: true, message: "電話不能為空", trigger: "blur" },
   { pattern: /^[0-9\-]+$/, message: "電話格式不正確", trigger: "blur" },
 ];
 

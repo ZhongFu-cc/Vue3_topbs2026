@@ -101,7 +101,7 @@ const data = ref<Member>({
   lastName: '',
   chineseName: '',
   email: '',
-  password: '69678786',
+  password: '',
   confirmPassword: '',
   affiliation: '',
   jobTitle: '',
@@ -126,7 +126,7 @@ const idCardRules =
   computed(() => [
     {
       required: data.value.country === 'Taiwan',
-      validator: checkIdCard,
+      validator: data.value.country === 'Taiwan' ? checkIdCard : undefined,
       trigger: 'blur'
     }
   ])
