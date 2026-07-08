@@ -37,6 +37,7 @@ jobs:
       - name: Check remote folder
         if: github.ref == 'refs/heads/main'
         uses: appleboy/ssh-action@v1.0.3
+        if: github.ref == 'refs/heads/main'
         with:
           host: ${{ secrets.GCP_VM_HOST }}
           username: ${{ secrets.SSH_USER }}
@@ -47,6 +48,7 @@ jobs:
       - name: Sync Dis Files to AlmaLinux VM
         if: github.ref == 'refs/heads/main' 
         uses: burnett01/rsync-deployments@v8
+        if: github.ref == 'refs/heads/main'
         with:
           remote_host: ${{ secrets.GCP_VM_HOST }}
           remote_user: ${{ secrets.SSH_USER }}

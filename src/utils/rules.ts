@@ -101,7 +101,7 @@ export const passwordRules = [
 ];
 
 export const passportRules = [
-  { required: true, message: "護照號碼不能為空", trigger: "blur" },
+  { required: false, message: "護照號碼不能為空", trigger: "blur" },
 ];
 
 export const idCardRules = [
