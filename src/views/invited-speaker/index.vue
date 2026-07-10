@@ -240,8 +240,8 @@ onMounted(() => {
   getInvitedSpeakerByPagination();
 })
 
-const envMinio = import.meta.env.VITE_MINIO_API_URL;
-const envAPI = import.meta.env.VITE_APP_BASE_API;
+const envMinio = import.meta.env.VITE_MINIO_API;
+const envAPI = import.meta.env.VITE_MINIO_API;
 
 /**============================================ */
 const educationalBackgroundItem = ('');

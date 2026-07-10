@@ -176,7 +176,7 @@ const getPaperListByReviewer = async () => {
 
 
 const downloadFileFromMinio = (file: any) => {
-  const minioUrl = import.meta.env.VITE_MINIO_API_URL;
+  const minioUrl = import.meta.env.VITE_MINIO_API;
   const fileUrl = minioUrl + file.path;
   const link = document.createElement('a');
   link.href = fileUrl;

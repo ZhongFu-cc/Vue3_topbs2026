@@ -391,7 +391,7 @@ const toggleEdit = (paper: any) => {
 }
 
 const openFile = async (filePath: string) => {
-  const fileUrl = import.meta.env.VITE_MINIO_API_URL + filePath;
+  const fileUrl = import.meta.env.VITE_MINIO_API + filePath;
   const link = document.createElement('a');
   link.href = fileUrl;
   document.body.appendChild(link);

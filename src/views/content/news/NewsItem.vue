@@ -278,7 +278,7 @@ onMounted(async () => {
   await getArticle()
   // imageUrl.value = protocol + '//' + hostname + '/minio' + article.coverThumbnailUrl
 
-  imageUrl.value = import.meta.env.VITE_MINIO_API_URL + article.coverThumbnailUrl;
+  imageUrl.value = import.meta.env.VITE_MINIO_API + article.coverThumbnailUrl;
 })
 
 </script>

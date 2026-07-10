@@ -268,7 +268,7 @@ const updatePaper = async () => {
 
 // ---------- 附件下載 ----------
 const openFile = async (filePath: string) => {
-  const fileUrl = import.meta.env.VITE_MINIO_API_URL + filePath;
+  const fileUrl = import.meta.env.VITE_MINIO_API + filePath;
   window.open(fileUrl, '_blank');
 };
 

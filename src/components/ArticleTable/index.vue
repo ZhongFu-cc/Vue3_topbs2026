@@ -152,7 +152,7 @@ const protocol = window.location.protocol; // 获取当前协议 (例如 "http:"
 const hostname = window.location.hostname; // 获取当前域名 (例如 "www.example.com")
 
 const envAPI = import.meta.env.VITE_APP_BASE_API;
-const envMinio = import.meta.env.VITE_MINIO_API_URL;
+const envMinio = import.meta.env.VITE_MINIO_API;
 
 
 /** ---------------- 一般資料顯示 --------------------- */
