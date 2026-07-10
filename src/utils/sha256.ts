@@ -189,7 +189,7 @@ export async function slideUpload(
     percentage.value = 100; // 上傳完成後設置為 100%
   } else {
     percentage.value = 100;
-    let baseUrl = import.meta.env.VITE_MINIO_API_URL;
+    let baseUrl = import.meta.env.VITE_MINIO_API;
     let url = `${baseUrl}/topbs2026/${checkResult.data.path}`;
     window.open(url, "_blank");
   }
