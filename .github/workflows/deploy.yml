@@ -35,6 +35,7 @@ jobs:
         run: ls -la dist
 
       - name: Check remote folder
+        if: github.ref == 'refs/heads/main'
         uses: appleboy/ssh-action@v1.0.3
         if: github.ref == 'refs/heads/main'
         with:
@@ -45,6 +46,7 @@ jobs:
             ls -la /home/user/front-end/backstage
 
       - name: Sync Dis Files to AlmaLinux VM
+        if: github.ref == 'refs/heads/main' 
         uses: burnett01/rsync-deployments@v8
         if: github.ref == 'refs/heads/main'
         with:
