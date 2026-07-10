@@ -130,7 +130,7 @@ const idCardRules =
   computed(() => [
     {
       required: data.value.country === 'Taiwan',
-      validator: checkIdCard,
+      validator: data.value.country === 'Taiwan' ? checkIdCard : undefined,
       trigger: 'blur'
     }
   ])
