@@ -29,7 +29,7 @@ const codeMap: Record<string, number> = {
   Z: 33,
 };
 
-const checkIdCard = (rule: any, value: string, callback: any) => {
+export const checkIdCard = (rule: any, value: string, callback: any) => {
   if (!/^[A-Z][0-9]{9}$/.test(value)) {
     callback({ valid: false, message: "身份證格式不正確" });
   }
@@ -87,12 +87,12 @@ export const emailRules = [
   },
 ]
 
-export const affiliationRules = [{ required: true, message: "單位名稱不能為空", trigger: "blur" }];
+export const affiliationRules = [{ required: false, message: "單位名稱不能為空", trigger: "blur" }];
 
-export const jobTitleRules = [{ required: true, message: "職稱不能為空", trigger: "blur" }];
+export const jobTitleRules = [{ required: false, message: "職稱不能為空", trigger: "blur" }];
 
 export const chineseNameRules = [
-  { required: true, message: "中文姓名不能為空", trigger: "blur" },
+  { required: false, message: "中文姓名不能為空", trigger: "blur" },
   { min: 2, max: 10, message: "中文姓名長度在 2 到 10 個字", trigger: "blur" },
 ];
 
@@ -101,7 +101,7 @@ export const passwordRules = [
 ];
 
 export const passportRules = [
-  { required: true, message: "護照號碼不能為空", trigger: "blur" },
+  { required: false, message: "護照號碼不能為空", trigger: "blur" },
 ];
 
 export const idCardRules = [
