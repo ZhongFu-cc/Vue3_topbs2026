@@ -241,7 +241,7 @@ onMounted(() => {
 })
 
 const envMinio = import.meta.env.VITE_MINIO_API;
-const envAPI = import.meta.env.VITE_MINIO_API;
+const envAPI = import.meta.env.VITE_APP_BASE_API;
 
 /**============================================ */
 const educationalBackgroundItem = ('');
@@ -334,6 +334,7 @@ const editForm = reactive<any>({
   workExperience: [],
   publication: [],
   award: [],
+  isPublished: 1
 })
 
 
