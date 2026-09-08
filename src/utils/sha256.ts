@@ -88,7 +88,7 @@ export async function hashFile(file: File) {
   //   );
   //   await limitConcurrency(uploadTasks, MAX_CONCURRENT);
   // } else {
-  //   let baseUrl = import.meta.env.VITE_MINIO_API_URL;
+  //   let baseUrl = import.meta.env.VITE_MINIO_API;
   //   let url = `${baseUrl}/topbs2025/${res.data.path}`;
   //   window.open(url, "_blank");
   // }
