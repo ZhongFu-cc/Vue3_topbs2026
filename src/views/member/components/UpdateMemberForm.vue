@@ -64,7 +64,7 @@
           <el-input v-model="updateFormData.categoryExtra" />
         </el-form-item> -->
 
-        <el-form-item label="註冊費">
+        <el-form-item label="應繳總額">
           <el-input v-model="props.memberData.amount" disabled />
         </el-form-item>
 
