@@ -157,7 +157,7 @@ const getPaperListByReviewer = async () => {
   }
   Object.assign(paperList, res.data);
   // 每次獲取稿件列表後，同步更新統計數據
-  getReviewStats();
+  await getReviewStats();
 
   // 如果沒有待審核的稿件，顯示提示框，告知審核已完成
   if (paperCount.value.notReviewedCount === 0) {
