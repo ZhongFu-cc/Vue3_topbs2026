@@ -2,14 +2,18 @@ name: Deploy
 
 on:
   push:
-    branches: 
-      - '**'
+    branches: main
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
     
       - name: Node.js setup
         uses: actions/setup-node@v4
@@ -23,11 +27,8 @@ jobs:
 
       - name: Install depemdemcoes and Build
         working-directory: ./ 
-        env:
-          VITE_APP_BASE_API: ${{ secrets.VITE_APP_BASE_API }}
-          VITE_MINIO_API: ${{ secrets.VITE_MINIO_API }}
         run: |
-          npm install -g pnpm@9
+          pnpm config set onlyBuiltDependencies "esbuild,@parcel/watcher,vue-demi,bufferutil,utf-8-validate,es5-ext"
           pnpm install
           pnpm run build:prod
 
@@ -35,17 +36,15 @@ jobs:
         run: ls -la dist
 
       - name: Check remote folder
-        if: github.ref == 'refs/heads/main'
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.GCP_VM_HOST }}
+          host: ${{ secrets.GCO_VM_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            ls -la /home/user/front-end/backstage
+            ls -la /home/admin/front-end/
 
       - name: Sync Dis Files to AlmaLinux VM
-        if: github.ref == 'refs/heads/main' 
         uses: burnett01/rsync-deployments@v8
         with:
           remote_host: ${{ secrets.GCP_VM_HOST }}
@@ -53,20 +52,19 @@ jobs:
           remote_key: ${{ secrets.SSH_PRIVATE_KEY }}
 
           path: "dist/"
-          remote_path: /home/user/front-end/backstage
+          remote_path: /home/admin/front-end
           debug: true
           switches: "-avz --delete"
 
       - name: Copy to nginx
         uses: appleboy/ssh-action@v1
-        if: github.ref == 'refs/heads/main'
         with:
           host: ${{ secrets.GCP_VM_HOST }}
           port: 22
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            sudo cp -r /home/user/front-end/backstage/* /usr/share/nginx/html/background
+            sudo cp -r /home/admin/front-end/* /usr/share/nginx/html
         
   
     
