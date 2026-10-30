@@ -167,7 +167,7 @@ import {
 } from "@/api/attendee";
 import { checkinApi, deleteLastCheckinRecordApi, getCheckDataApi } from "@/api/checkin";
 import { useHtml5Code } from "@/utils/qrcodeScanner";
-import { ElNotification, ElMessage, FormInstance } from "element-plus";
+import { ElNotification, ElMessage, FormInstance, NotificationHandle } from "element-plus";
 
 import { memberEnums } from "@/enums/MemberEnum";
 import { formRulesTW } from "@/utils/checkSum";
@@ -228,10 +228,9 @@ const checkOut = async () => {
     submitCheckData.actionType = 2;
     let res = await checkinApi(submitCheckData);
     Object.assign(member, res.data);
-    console.log("res", res);
-    ElMessage.success({
-      message: `會員${clickRecord.member.chineseName}:簽退成功`,
-      duration: 1000,
+    ElNotification.success({
+      message: `會員${res.data.attendeesVO.member.chineseName ? res.data.attendeesVO.member.chineseName : res.data.attendeesVO.member.firstName + res.data.attendeesVO.member.lastName}:簽退成功`,
+      duration: 5000,
     });
     isOptionDialogVisible.value = false;
     handleUpdateList();
@@ -241,39 +240,46 @@ const checkOut = async () => {
   }
 };
 
+let lastCheckinNotification: NotificationHandle | null = null;
 const checkin = async () => {
   try {
-    console.log(submitCheckData);
     let res = await checkinApi(submitCheckData);
     Object.assign(member, res.data);
-    console.log("res", res);
     let category = "";
     switch (res.data.attendeesVO.member.category) {
       case 1:
         category = "一般會員";
         break;
+      case 4:
+        category = "WorkShop";
+        break;
+      case 5:
+        category = "講者";
+        break;
+      case 6:
+        category = "座長";
+        break;
     }
 
-    console.log(res.data.attendeesVO.isLastYearAttendee);
-    // if (submitCheckData.actionType == 2) return;
     const type = submitCheckData.actionType == 1 ? "簽到成功" : "簽退成功";
-    if (res.data.attendeesVO.isLastYearAttendee) {
-      ElNotification({
-        title: `會員編號:${res.data.attendeesVO.sequenceNo}`,
-        dangerouslyUseHTMLString: true,
-        message: `<p style="color:green;font-weight:bold;">${type}</p> 會員: ${res.data.attendeesVO.member.chineseName}<br/>會員類別: ${category}<br/> <p style="color:green;">為去年年會參加會員</p>`,
-        duration: 5000,
-        type: "success",
-      });
-    } else {
-      ElNotification({
-        title: `會員編號:${res.data.attendeesVO.sequenceNo}`,
-        dangerouslyUseHTMLString: true,
-        message: `<p style="color:green;font-weight:bold;">${type}</p>會員: ${res.data.attendeesVO.member.chineseName}<br/>會員類別: ${category}<br/><p style="color:red;"> 非去年年會參加會員</p>`,
-        duration: 5000,
-        type: "success",
-      });
-    }
+    const lastYearText = res.data.attendeesVO.isLastYearAttendee
+      ? `<p style="color:green;">為去年年會參加會員</p>`
+      : `<p style="color:red;">非去年年會參加會員</p>`;
+    // 關閉上一個簽到提醒，避免連續簽到時提醒堆疊占用版面
+    lastCheckinNotification?.close();
+    lastCheckinNotification = ElNotification({
+      title: `會員編號:${res.data.attendeesVO.sequenceNo}`,
+      dangerouslyUseHTMLString: true,
+      message: `<p style="color:green;font-weight:bold;">${type}</p>
+        會員: ${res.data.attendeesVO.member.chineseName ? res.data.attendeesVO.member.chineseName : res.data.attendeesVO.member.firstName + res.data.attendeesVO.member.lastName}<br/>
+        會員類別: ${category}<br/>
+        ${res.data.attendeesVO.member.remark ? `備註: ${res.data.attendeesVO.member.remark}` : ''}<br/>
+        ${res.data.attendeesVO.receiptNo ? `證書編號: ${res.data.attendeesVO.receiptNo}` : ''}
+        ${lastYearText}
+        `,
+      duration: 10000,
+      type: "success",
+    });
 
     handleUpdateList();
     getCheckData();
@@ -351,6 +357,7 @@ const handleScroll = async (e: any) => {
     ElMessage({
       message: "沒有更多資料了",
       type: "warning",
+      grouping: true,
     });
   }
 

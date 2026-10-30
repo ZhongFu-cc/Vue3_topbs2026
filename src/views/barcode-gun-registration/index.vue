@@ -130,6 +130,11 @@
                     <el-form-item label="會員職稱">
                         <el-text>{{ attendee.member.jobTitle }}</el-text>
                     </el-form-item>
+
+                    <el-form-item label="證書證號">
+                        <el-text>{{ attendee.receiptNo }}</el-text>
+                    </el-form-item>
+
                     <el-form-item label="會員電話">
                         <el-text>{{ attendee.member.phone }}</el-text>
                     </el-form-item>
@@ -173,7 +178,9 @@ import AttendeesStats from "@/components/AttendeesRegistration/index.vue";
 import { checkinApi, deleteLastCheckinRecordApi, getCheckDataApi } from "@/api/checkin";
 import { useBarcodeGun } from "@/composables/useBarcodeGun";
 import { useTSC, type PrintData } from "@/composables/useTSC";
-import { ElNotification, ElMessage, FormInstance } from "element-plus";
+import { useLabelSettings, LABEL_MARGINS } from "@/composables/useLabelSettings";
+import { measureTextWidthDots, computeMultiLineLayout } from "@/utils/labelLayout";
+import { ElNotification, ElMessage, FormInstance, NotificationHandle } from "element-plus";
 import {
     Promotion,
     Setting,
@@ -227,41 +234,7 @@ const print = () => {
 // 標籤設定和預覽
 
 
-const INCH_TO_PX = 96
-const INCH_TO_DOT = 300
-const PX_TO_DOT = INCH_TO_DOT / INCH_TO_PX
-const PRINT_X_COMPENSATION_MM = -3.0
-
-const labelSettings = reactive({
-    width: 95,      // 標籤寬度 (mm)
-    height: 60,     // 標籤高度 (mm)
-    lines: [
-        {
-            text: 'English Name', // 第一行文字內容
-            textType: 'userName',
-            textInfo: {
-                textType: 'userName',
-                textShow: 'English Name'
-            },
-            x: 3,           // 第一行 X 軸位置 (mm)
-            y: 2,           // 第一行 Y 軸位置 (mm)
-            fontSize: 155,   // 第一行字體大小
-            positionMode: ''
-        },
-        {
-            text: '中文名', // 第二行文字內容
-            textType: 'chineseName',
-            textInfo: {
-                textType: 'chineseName',
-                textShow: '中文名'
-            },
-            x: 8,           // 第二行 X 軸位置 (mm) - 可獨立設定
-            y: 15,          // 第二行 Y 軸位置 (mm) - 可獨立設定
-            fontSize: 130,   // 第二行字體大小 - 可獨立設定
-            positionMode: ''
-        }
-    ]
-})
+const { labelSettings, loadTemporaryStoredSettings: loadStoredLabelSettings } = useLabelSettings()
 
 // 監聽 labelSettings 變化並更新 labelConfig
 watch(
@@ -286,39 +259,10 @@ watch(
     { deep: true }
 )
 
-let measureCanvas: HTMLCanvasElement | null = null
-let measureCtx: CanvasRenderingContext2D | null = null
-
-const getPreciseWidth = (text: string,
-    fontHeightDots: number,
-    fontStyle: any,
-    faceName: string) => {
-    if (!measureCanvas) {
-        measureCanvas = document.createElement('canvas')
-        measureCtx = measureCanvas.getContext('2d')
-    }
-    if (!measureCtx) return 0
-
-    // 將 mm 轉回瀏覽器像素供測量 (假設 1mm = 3.78px)
-    const fontHeightPx = fontHeightDots / PX_TO_DOT
-    const italic = (fontStyle === '1' || fontStyle === '3') ? 'italic ' : ''
-    const bold = (fontStyle === '2' || fontStyle === '3') ? 'bold ' : ''
-
-    measureCtx.font = `${italic}${bold}${fontHeightPx}px "${faceName}"`
-
-    const metrics = measureCtx.measureText(text)
-    const pureWidthPx = (metrics.actualBoundingBoxRight - metrics.actualBoundingBoxLeft) * 0.85
-
-    return Math.round(pureWidthPx * PX_TO_DOT)
-}
-
 // 計算文字邊界和安全區域 - 支援多行獨立設定
 const textBounds = computed(() => {
-    // 考慮TSC印表機的邊距
-    const leftMargin = 2
-    const rightMargin = 2
-    const topMargin = 1
-    const bottomMargin = 1
+    // 考慮TSC印表機的邊距（與 useLabelSettings 共用同一份，避免與其他畫面的邊距再度不同步）
+    const { left: leftMargin, right: rightMargin, top: topMargin, bottom: bottomMargin } = LABEL_MARGINS
 
     // 計算每一行的邊界信息
     const linesBounds = labelSettings.lines.map((line, index) => {
@@ -326,7 +270,7 @@ const textBounds = computed(() => {
         const lineHeightMm = fontSizeMm * 0.9   // 單行高度
 
         // 計算這一行的寬度
-        const lineWidthMm = getPreciseWidth(line.text, line.fontSize, '0', 'Arial') / 300 * 25.4 // 將字體寬度轉換為毫米
+        const lineWidthMm = measureTextWidthDots(line.text, line.fontSize, '0', 'Arial') / 300 * 25.4 // 將字體寬度轉換為毫米
 
         // 計算安全的最大位置（確保文字不會超出標籤邊界）
         const maxX = Math.max(leftMargin, labelSettings.width - lineWidthMm - rightMargin)
@@ -446,59 +390,64 @@ const centerText = () => {
 
 
 
-// 自動打印開關
+// 透過 WebSocket 將指令送到 TSC PrintServer，單次嘗試
+// 閒置一段時間後，印表機端的連線／USB port 可能已經失效，
+// 因此這裡加上逾時保護，並在失敗時把 isConnected 重設回 false，
+// 讓畫面即時反映真實連線狀態，而不是一直卡在「已連接」
+const sendPrintCommandsOverSocket = (commandsObj: { functions_inorder: any[] }): Promise<boolean> => {
+    return new Promise((resolve) => {
+        const websocket = new WebSocket('ws://127.0.0.1:8888')
+        let settled = false
+        let timeoutId: ReturnType<typeof setTimeout>
 
-const wrapTextByWidthMm = (text: string, fontSize: number, maxWidthMm: number): string[] => {
-    console.log(`開始換行計算 - 字體大小: ${fontSize}, 可用寬度: ${maxWidthMm}mm, 原始文字: "${text}"`)
-    const normalizedText = (text || '').trim()
-    if (!normalizedText) return []
-    if (maxWidthMm <= 0) return [normalizedText]
-
-    const wrappedLines: string[] = []
-    let currentLine = ''
-
-    for (const char of Array.from(normalizedText)) {
-        if (!currentLine && /\s/.test(char)) {
-            continue
+        const finish = (success: boolean) => {
+            if (settled) return
+            settled = true
+            clearTimeout(timeoutId)
+            websocket.close()
+            if (!success) {
+                isConnected.value = false
+            }
+            resolve(success)
         }
 
-        const candidate = currentLine + char
-        const candidateWidthMm = getPreciseWidth(candidate, fontSize, '0', 'Arial') / INCH_TO_DOT * 25.4
+        timeoutId = setTimeout(() => {
+            console.warn('列印連線逾時，印表機可能閒置後連線已失效')
+            finish(false)
+        }, 8000)
 
-        if (!currentLine || candidateWidthMm <= maxWidthMm) {
-            currentLine = candidate
-            continue
+        websocket.onopen = () => {
+            websocket.send(JSON.stringify(commandsObj))
         }
 
-        let breakIndex = -1
-        for (let i = currentLine.length - 1; i >= 0; i--) {
-            if (/\s/.test(currentLine[i])) {
-                breakIndex = i
-                break
+        websocket.onmessage = (event) => {
+            if (event.data === 'Finished') {
+                finish(true)
             }
         }
 
-        if (breakIndex >= 0) {
-            const linePart = currentLine.slice(0, breakIndex).trimEnd()
-            if (linePart) {
-                wrappedLines.push(linePart)
-            }
-            currentLine = (currentLine.slice(breakIndex + 1) + char).trimStart()
-        } else {
-            wrappedLines.push(currentLine.trimEnd())
-            currentLine = char.trimStart()
+        websocket.onerror = () => {
+            finish(false)
         }
-    }
 
-    if (currentLine.trim()) {
-        wrappedLines.push(currentLine.trim())
-    }
+        websocket.onclose = () => {
+            finish(false)
+        }
+    })
+}
 
-    return wrappedLines.length > 0 ? wrappedLines : [normalizedText]
+// 送出列印指令，若第一次因連線問題失敗，重新開一條連線再試一次，
+// 用來處理印表機閒置後首次連線失敗、但馬上重連就會成功的情況
+const sendPrintCommandsWithRetry = async (commandsObj: { functions_inorder: any[] }): Promise<boolean> => {
+    const firstAttempt = await sendPrintCommandsOverSocket(commandsObj)
+    if (firstAttempt) return true
+
+    console.warn('列印連線失敗，重新連線並重試一次...')
+    return sendPrintCommandsOverSocket(commandsObj)
 }
 
 // 多行獨立設定打印函數
-const printLabelWithMultiLineSettings = async (lines: Array<{ text: string, x: number, y: number, fontSize: number, textType: string }>) => {
+const printLabelWithMultiLineSettings = async (lines: Array<{ text: string, x: number, y: number, fontSize: number, textType: string, textInfo: { textType: string }, positionMode?: string }>) => {
     if (!isConnected.value) {
         console.log('印表機未連接')
         return false
@@ -535,133 +484,44 @@ const printLabelWithMultiLineSettings = async (lines: Array<{ text: string, x: n
         const { width, height } = labelSettings
         console.log(`設定紙張尺寸: ${width}mm x ${height}mm`)
         tsc.setup(width, height, '4', '12', '0', '3', '0')
-        // 先依 Y 軸排序後進行動態重排：前一行換行時，後續行會自動下推避免重疊
-        const sortedLines = lines
-            .map((line, order) => ({ ...line, order }))
-            .sort((a, b) => a.y - b.y || a.order - b.order)
 
-        const safeLeft = textBounds.value.leftMargin
-        const safeRight = labelSettings.width - textBounds.value.rightMargin
-        const availableWidthMm = Math.max(1, safeRight - safeLeft) + PRINT_X_COMPENSATION_MM
-        const topBoundary = textBounds.value.topMargin
-        const bottomBoundary = labelSettings.height - textBounds.value.bottomMargin
-        const blockGapMm = 0.5
-        const usableHeightMm = bottomBoundary - topBoundary
-
-        let flowCursorY = topBoundary
-
-        const MIN_FONT_SIZE = 120
-        const FONT_DECREASE_STEP = 15
-        const layoutSegments: Array<{ text: string, fontSize: number, x: number, y: number, textType: string }> = []
-        sortedLines.forEach((line, index) => {
-
-            let currentFontSize = line.fontSize
-            let wrappedLines: string[] = []
-
-            // ================= 1. X 軸判定：優先縮小字型，縮到極限才折行 =================
-            while (currentFontSize >= MIN_FONT_SIZE) {
-                // 計算「整行不換行」時的精確寬度 (公釐)
-                const fullTextWidthDots = getPreciseWidth(line.text, currentFontSize, '0', 'Arial')
-                const fullTextWidthMm = fullTextWidthDots / INCH_TO_DOT * 25.4
-
-                // 如果單行寬度小於可用寬度，完美單行塞下！
-                if (fullTextWidthMm <= availableWidthMm) {
-                    wrappedLines = [line.text]
-                    break // 跳出 while
-                }
-
-                // 如果超過寬度，且還能再縮小
-                console.log(currentFontSize > MIN_FONT_SIZE, `第 ${index + 1} 行文字寬度 (${fullTextWidthMm.toFixed(1)}mm) 超過可用寬度 (${availableWidthMm.toFixed(1)}mm)，嘗試縮小字型...`)
-                if (currentFontSize > MIN_FONT_SIZE) {
-                    currentFontSize -= FONT_DECREASE_STEP
-                    console.log(`第 ${index + 1} 行文字 X 軸超寬，嘗試縮小字型至: ${currentFontSize}`)
-                    wrappedLines = wrapTextByWidthMm(line.text, currentFontSize, availableWidthMm)
-                } else {
-                    // 已經縮到 12 了還是塞不下，逼不得已，呼叫換行機制
-                    console.warn(`第 ${index + 1} 行字型已縮至極限 (${currentFontSize})，仍超寬，啟動換行機制`)
-                    wrappedLines = wrapTextByWidthMm(line.text, line.fontSize, availableWidthMm)
-                    break // 跳出 while
-                }
+        // 排版計算（縮字/換行/座標）改用與「測試列印」「畫布預覽」共用的排版引擎，
+        // 確保三處算出來的結果完全一致
+        const layoutSegments = computeMultiLineLayout(
+            lines.map(line => ({
+                text: line.text,
+                x: line.x,
+                y: line.y,
+                fontSize: line.fontSize,
+                textType: line.textInfo.textType,
+                positionMode: line.positionMode
+            })),
+            {
+                labelWidthMm: width,
+                labelHeightMm: height,
+                margins: LABEL_MARGINS
             }
-
-            // 印出排版前的真實狀態（深拷貝避免 console.log 延遲求值導致的顯示混淆）
-            console.log(`第${index + 1}行排版計算 - 字型: ${currentFontSize}, 行數: ${wrappedLines.length}`)
-
-            // ================= 2. 依據最終確定的字型，計算 Y 軸與行高 =================
-            const lineHeightMm = (currentFontSize / INCH_TO_DOT * 25.4) * 1.1
-            const startY = Math.max(line.y, flowCursorY)
-
-            wrappedLines.forEach((wrappedText, wrappedIndex) => {
-                const currentY = startY + wrappedIndex * lineHeightMm
-
-                // 量測縮小/折行後，各子段落文字的精確寬度以進行置中
-                const wrappedWidthMm = getPreciseWidth(wrappedText, currentFontSize, '0', 'Arial') / INCH_TO_DOT * 25.4
-                const centeredX = Math.max(
-                    safeLeft,
-                    safeLeft + (availableWidthMm - wrappedWidthMm) / 2
-                )
-
-                // 將最終決定的 text, fontSize, x, y 推入排版陣列
-                layoutSegments.push({
-                    text: wrappedText,
-                    fontSize: currentFontSize, // 👈 這裡帶入動態縮小後的字型！
-                    x: centeredX,
-                    y: currentY,
-                    textType: line.textType
-                })
-            })
-
-
-            // 更新下一行的 Y 軸游標起點
-            flowCursorY = startY + wrappedLines.length * lineHeightMm + blockGapMm
-        })
+        )
 
         console.log('布局分段:', layoutSegments)
 
-        if (layoutSegments.length > 0) {
-            const minY = layoutSegments.reduce((min, seg) => Math.min(min, seg.y), Number.POSITIVE_INFINITY)
-            const maxBottom = layoutSegments.reduce((max, seg) => {
-                const segHeight = (seg.fontSize / INCH_TO_DOT * 25.4) * 1.1
-                return Math.max(max, seg.y + segHeight)
-            }, Number.NEGATIVE_INFINITY)
+        layoutSegments.forEach((seg) => {
+            // 將 mm 轉換為 dots (假設 300 DPI)
+            const dpi = 300
+            const xDots = Math.round(seg.x * dpi / 25.4)
+            const yDots = Math.round(seg.y * dpi / 25.4)
 
-            const contentHeightMm = Math.max(0, maxBottom - minY)
-            const targetTopY = contentHeightMm >= usableHeightMm
-                ? topBoundary
-                : topBoundary + (usableHeightMm - contentHeightMm) / 2
-            const verticalOffset = targetTopY - minY
-
-            layoutSegments.forEach((seg, segIndex) => {
-                const adjustedY = seg.y + verticalOffset
-                if (adjustedY > bottomBoundary) {
-                    console.warn(`第${segIndex + 1}段 Y 軸置中後超出下邊界，略過該段`)
-                    return
-                }
-
-
-
-                // TSC 印表機補償：向左微調（可依機台特性微調）
-                const compensatedX = seg.textType === 'chineseName' ? seg.x + 1.5 : seg.x + PRINT_X_COMPENSATION_MM > 0
-                    ? seg.x + PRINT_X_COMPENSATION_MM
-                    : seg.x
-
-                // 將 mm 轉換為 dots (假設 300 DPI)
-                const dpi = 300
-                const xDots = Math.round(compensatedX * dpi / 25.4)
-                const yDots = Math.round(adjustedY * dpi / 25.4)
-
-                tsc.windowsfont(
-                    String(xDots),
-                    String(yDots),
-                    String(seg.fontSize),
-                    '0', // rotation
-                    '2', // fontStyle (粗體)
-                    '0', // fontUnderline
-                    'Arial', // fontFamily
-                    seg.text
-                )
-            })
-        }
+            tsc.windowsfont(
+                String(xDots),
+                String(yDots),
+                String(seg.fontSize),
+                '0', // rotation
+                '2', // fontStyle (粗體)
+                '0', // fontUnderline
+                'Microsoft JhengHei', // fontFamily
+                seg.text
+            )
+        })
 
         // 列印標籤
         tsc.printlabel(1, 1)
@@ -670,26 +530,7 @@ const printLabelWithMultiLineSettings = async (lines: Array<{ text: string, x: n
         // 發送指令到印表機
         const commandsObj = { functions_inorder: tsc.getCommands() }
 
-        // 重用現有的 WebSocket 連接邏輯
-        const websocket = new WebSocket('ws://127.0.0.1:8888')
-
-        return new Promise((resolve) => {
-            websocket.onopen = () => {
-                websocket.send(JSON.stringify(commandsObj))
-            }
-
-            websocket.onmessage = (event) => {
-                if (event.data === 'Finished') {
-                    websocket.close()
-                    resolve(true)
-                }
-            }
-
-            websocket.onerror = () => {
-                websocket.close()
-                resolve(false)
-            }
-        })
+        return await sendPrintCommandsWithRetry(commandsObj)
 
     } catch (error) {
         console.error('多行獨立打印失敗:', error)
@@ -724,12 +565,14 @@ const printUserNameLabel = async (attendee: any) => {
 
         const userName = `${firstName} ${lastName}`
         labelSettings.lines.forEach((line) => {
-            line.text = '' // 先清空所有行文字  
+            line.text = '' // 先清空所有行文字
+            console.log(line.text, line.textInfo)
             switch (line.textInfo.textType) {
                 case 'userName':
                     line.text = userName
                     break
                 case 'chineseName':
+                    console.log(memberInfo)
                     line.text = memberInfo.chineseName || ''
                     line.textType = 'chineseName'
                     break
@@ -744,8 +587,11 @@ const printUserNameLabel = async (attendee: any) => {
                     break
             }
         })
+
         // 使用多行設定來打印
-        const lines = labelSettings.lines.filter(line => line.text.trim() !== '')
+        const lines = labelSettings.lines.filter((line) => {
+            return line.text.trim() !== ''
+        })
 
         if (lines.length === 0) {
             // 如果沒有設定，使用預設設定
@@ -774,22 +620,20 @@ const printUserNameLabel = async (attendee: any) => {
             return success
         } else {
             // 使用多行獨立設定打印
-            // 暫時更新第一行文字為用戶名以進行置中計算
-            const originalFirstLineText = lines[0].text
-            // 準備打印資料：第一行使用用戶名，其餘行保持原設定
-            const printLines = labelSettings.lines.slice(0, lines.length).map((line, index) => ({
-                text: lines[index].text,
+            // 直接用過濾後的 lines 建立列印資料：每個元素本來就是原陣列中同一個物件，
+            // text 與 x/y/fontSize/textInfo 本來就正確配對在一起，避免某一行文字是空的時候，
+            // 後面的行「文字」跟「座標/字級」對錯位（吃到前一行的樣式）
+            const printLines = lines.map((line) => ({
+                text: line.text,
                 x: line.x,
                 y: line.y,
                 fontSize: line.fontSize,
                 positionMode: line.positionMode,
-                textType: line.textType
+                textType: line.textInfo.textType,
+                textInfo: line.textInfo
             }))
 
             const success = await printLabelWithMultiLineSettings(printLines)
-
-            // 恢復原始第一行文字
-            labelSettings.lines[0].text = originalFirstLineText
 
             if (success) {
                 ElNotification({
@@ -883,10 +727,10 @@ const checkOut = async () => {
         submitCheckData.actionType = 2;
         let res = await checkinApi(submitCheckData);
         Object.assign(member, res.data);
-        console.log("res", res);
-        ElMessage.success({
-            message: `會員${clickRecord.member.chineseName}:簽退成功`,
-            duration: 0,
+        console.log(clickRecord)
+        ElNotification.success({
+            message: `會員${res.data.attendeesVO.member.chineseName ? res.data.attendeesVO.member.chineseName : res.data.attendeesVO.member.firstName + res.data.attendeesVO.member.lastName}:簽退成功`,
+            duration: 5000,
         });
         isOptionDialogVisible.value = false;
         handleUpdateList();
@@ -896,6 +740,7 @@ const checkOut = async () => {
     }
 };
 
+let lastCheckinNotification: NotificationHandle | null = null;
 const checkin = async () => {
     try {
         let res = await checkinApi(submitCheckData);
@@ -917,28 +762,20 @@ const checkin = async () => {
         }
 
         const type = submitCheckData.actionType == 1 ? "簽到成功" : "簽退成功";
-        // if (res.data.attendeesVO.isLastYearAttendee) {
-        //     ElNotification({
-        //         title: `會員編號:${res.data.attendeesVO.sequenceNo}`,
-        //         dangerouslyUseHTMLString: true,
-        //         message: `<p style="color:green;font-weight:bold;">${type}</p>
-        //          會員: ${res.data.attendeesVO.member.chineseName}<br/>
-        //          會員類別: ${category}<br/> <p style="color:green;">為去年年會參加會員</p>`,
-        //         duration: 10000,
-        //         type: "success",
-        //     });
-        // } else {
-        ElNotification({
+        // 關閉上一個簽到提醒，避免連續掃碼時提醒堆疊占用版面
+        lastCheckinNotification?.close();
+        lastCheckinNotification = ElNotification({
             title: `會員編號:${res.data.attendeesVO.sequenceNo}`,
             dangerouslyUseHTMLString: true,
             message: `<p style="color:green;font-weight:bold;">${type}</p>
                 會員: ${res.data.attendeesVO.member.chineseName ? res.data.attendeesVO.member.chineseName : res.data.attendeesVO.member.firstName + res.data.attendeesVO.member.lastName}<br/>
-                會員類別: ${category}<br/>${res.data.attendeesVO.member.remark ? `備註: ${res.data.attendeesVO.member.remark}` : ''}<br/>`,
-            // <p style="color:red;"> 非去年年會參加會員</p>`,
+                會員類別: ${category}<br/>
+                ${res.data.attendeesVO.member.remark ? `備註: ${res.data.attendeesVO.member.remark}` : ''}<br/>
+                ${res.data.attendeesVO.receiptNo ? `證書編號: ${res.data.attendeesVO.receiptNo}` : ''}
+                `,
             duration: 10000,
             type: "success",
         });
-        // }
 
         handleUpdateList();
         getCheckData();
@@ -1056,6 +893,7 @@ const handleScroll = async (e: any) => {
         ElMessage({
             message: "沒有更多資料了",
             type: "warning",
+            grouping: true,
         });
     }
 };
@@ -1085,18 +923,10 @@ const temporaryStore = () => {
 }
 
 const loadTemporaryStoredSettings = () => {
-    const storedSettings = localStorage.getItem('temporaryLabelSettings')
-    if (storedSettings) {
-        try {
-            const parsedSettings = JSON.parse(storedSettings)
-            Object.assign(labelSettings, parsedSettings)
-            // updatePreview()
-        } catch (error) {
-        }
-    } else {
-        centerText() // 如果沒有存儲，則執行置中
+    const loaded = loadStoredLabelSettings()
+    if (!loaded) {
+        centerText() // 如果沒有暫存設定，則執行置中
     }
-
 }
 
 // 開啟印表機設定對話框
@@ -1267,7 +1097,7 @@ const handleUpdateList = async () => {
 }
 
 const updateEveryMinute = () => {
-    setInterval(() => {
+    return setInterval(() => {
         console.log("每分鐘更新1");
         getCheckData();
         handleSaveLastScrollData();
