@@ -3,20 +3,16 @@
     <el-form class="insert-form" :model="data" ref="formRef" label-position="top" validate-on-rule-change>
       <el-form-item label="國家" prop="country" :rules="countryRules">
         <el-select v-model="data.country" filterable placeholder="國家">
-          <el-option v-for="item in countries" :value="item" :label="item" :key="item"></el-option>
+          <el-option v-for="item in countries" :value="item" :label="item" :key="item" />
         </el-select>
       </el-form-item>
 
       <el-form-item class="title-form-item" label="稱謂" prop="title" :rules="titleRules">
         <el-radio-group class="title-radio-group" v-model="data.title" placeholder="稱謂">
-          <el-radio label="Prof." value="Prof."></el-radio>
-          <el-radio label="Dr." value="Dr."></el-radio>
-          <el-radio label="Mr." value="Mr."></el-radio>
-          <el-radio label="Ms." value="Ms."></el-radio>
+          <el-radio v-for="title in memberTitles" :key="title" :label="title" :value="title" />
         </el-radio-group>
-
       </el-form-item>
-      <el-form-item v-if="data.country === 'Taiwan'" label="中文姓名" prop="chineseName" :rules="chineseNameRules">
+      <el-form-item v-if="isTaiwan" label="中文姓名" prop="chineseName" :rules="chineseNameRules">
         <el-input v-model="data.chineseName" placeholder="中文名" />
       </el-form-item>
       <el-form-item label="英文名" prop="firstName" :rules="firstNameRules">
@@ -25,10 +21,10 @@
       <el-form-item label="英文姓氏" prop="lastName" :rules="lastNameRules">
         <el-input v-model="data.lastName" placeholder="姓氏" />
       </el-form-item>
-      <el-form-item v-if="data.country !== 'Taiwan'" label="中文姓名">
+      <el-form-item v-if="!isTaiwan" label="中文姓名">
         <el-input v-model="data.chineseName" placeholder="中文名" />
       </el-form-item>
-      <el-form-item label="身分證字號/護照號碼" prop="idCard" :rules="data.country === 'Taiwan' ? idCardRules : passportRules">
+      <el-form-item label="身分證字號/護照號碼" prop="idCard" :rules="isTaiwan ? idCardRules : passportRules">
         <el-input v-model="data.idCard" placeholder="身份證字號/護照號碼" />
       </el-form-item>
 
@@ -38,7 +34,7 @@
       <el-form-item label="密碼" prop="password" :rules="passwordRules">
         <el-input v-model="data.password" placeholder="密碼" type="password" />
       </el-form-item>
-      <el-form-item label="確認密碼" prop="confirmPassword">
+      <el-form-item label="確認密碼" prop="confirmPassword" :rules="confirmPasswordRules(() => data.password)">
         <el-input v-model="data.confirmPassword" placeholder="確認密碼" type="password" />
       </el-form-item>
       <el-form-item label="所屬機構" prop="affiliation" :rules="affiliationRules">
@@ -47,9 +43,6 @@
       <el-form-item label="職稱" prop="jobTitle" :rules="jobTitleRules">
         <el-input v-model="data.jobTitle" placeholder="職稱" />
       </el-form-item>
-      <el-form-item label="身份證字號/護照號碼" prop="idCard" :rules="idCardRules">
-        <el-input v-model="data.idCard" placeholder="身份證字號/護照號碼" />
-      </el-form-item> -->
       <div class="phone-section">
         <el-form-item label="國碼" prop="countryCode" class="country-code" :rules="countryCodeRules">
           <el-input v-model="data.countryCode" />
@@ -73,32 +66,36 @@
       </el-form-item>
       <el-form-item class="category required" label="類別" prop="category" :rules="categoryRules">
         <el-select v-model="data.category">
-          <el-option label="MVP" :value="4"></el-option>
-          <el-option label="講者" :value="5"></el-option>
-          <el-option label="座長" :value="6"></el-option>
-          <el-option label="Staff" :value="7"></el-option>
+          <el-option v-for="id in vipCategoryIds" :key="id" :label="memberEnums[id]" :value="id" />
         </el-select>
       </el-form-item>
     </el-form>
 
     <div class="btn-box">
-      <el-button type="primary" @click="submitInsertForm(formRef)">送出</el-button>
-      <el-button @click="$emit('close')">取消</el-button>
+      <el-button type="primary" :loading="submitting" @click="submitInsertForm(formRef)">送出</el-button>
+      <el-button @click="emits('close')">取消</el-button>
     </div>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { Member } from '@/api/member/type';
+import { Member, CreateVipMemberPayload } from '@/api/member/type';
 import { FormInstance } from 'element-plus';
 import countriesData from '@/assets/data/countries.json'
 
-import { firstNameRules, lastNameRules, countryCodeRules, countryRules, affiliationRules, jobTitleRules, chineseNameRules, passwordRules, categoryRules, emailRules, phoneRules, titleRules, passportRules, checkIdCard } from '@/utils/rules'
+import { firstNameRules, lastNameRules, countryCodeRules, countryRules, affiliationRules, jobTitleRules, chineseNameRules, passwordRules, confirmPasswordRules, categoryRules, emailRules, phoneRules, titleRules, passportRules, idCardRules } from '@/utils/rules'
+import { memberEnums, memberTitles, vipCategoryIds } from '@/enums/MemberEnum'
 import { addVipMemberApi } from '@/api/member';
+import { tryCatch } from '@/utils/tryCatch'
+
+const emits = defineEmits<{
+  (e: 'close'): void;
+  (e: 'success'): void;
+}>();
+
 const countries = ref(countriesData)
 
-
-const data = ref<Member>({
+const createDefaultData = (): Member => ({
   country: 'Taiwan',
   title: 'Prof.',
   firstName: '',
@@ -110,7 +107,7 @@ const data = ref<Member>({
   affiliation: '',
   jobTitle: '',
   idCard: '',
-  countryCode: '',
+  countryCode: '886',
   phone: '',
   food: '葷',
   foodTaboo: '',
@@ -118,47 +115,38 @@ const data = ref<Member>({
   category: 4,
   status: 1,
 });
+
+const data = ref<Member>(createDefaultData());
 const formRef = ref<FormInstance>();
+const submitting = ref(false)
+const isTaiwan = computed(() => data.value.country === 'Taiwan')
 
-const emits = defineEmits<{
-  (e: 'close'): void;
-  (e: 'cancel'): void;
-}>();
+//不改動表單資料，組出送給 API 的 payload
+const buildPayload = (): CreateVipMemberPayload => {
+  const { confirmPassword, countryCode, ...rest } = data.value
+  return { ...rest, phone: countryCode + rest.phone }
+}
 
-console.log('data', data.value.country)
-const idCardRules =
-  computed(() => [
-    {
-      required: data.value.country === 'Taiwan',
-      validator: data.value.country === 'Taiwan' ? checkIdCard : undefined,
-      trigger: 'blur'
-    }
-  ])
+const submitInsertForm = async (form: FormInstance | undefined) => {
+  if (!form || submitting.value) return
 
+  const valid = await form.validate().catch(() => false)
+  if (!valid) {
+    ElMessage.error("請完整填入資訊")
+    return
+  }
 
+  submitting.value = true
+  const { error } = await tryCatch(addVipMemberApi(buildPayload()))
+  submitting.value = false
 
-const submitInsertForm = (form: FormInstance | undefined) => {
-  //沒有抓到的這個Dom直接返回
-  if (!form) return
-  form.validate(async (valid) => {
-    if (valid) {
-      try {
-        data.value.phone = data.value.countryCode + data.value.phone
-        //呼叫父組件給的新增function API
-        await addVipMemberApi(data.value)
-        ElMessage.success('新增成功');
-        form.resetFields()
-        emits('close')
-      } catch (err: any) {
-      } finally {
-        emits('close')
-      }
-      //最終都將這個dialog關掉
+  //失敗時保留使用者輸入，dialog 不關閉
+  if (error) return
 
-    } else {
-      ElMessage.error("請完整填入資訊")
-    }
-  })
+  ElMessage.success('新增成功');
+  form.resetFields()
+  emits('success')
+  emits('close')
 }
 
 </script>
@@ -178,13 +166,6 @@ const submitInsertForm = (form: FormInstance | undefined) => {
   }
 
   .category {
-
-    :deep(.el-radio-group) {
-      flex-direction: column;
-      display: flex;
-      justify-content: flex-start;
-      align-items: flex-start;
-    }
 
     :deep(.el-form-item__error) {
       position: absolute;

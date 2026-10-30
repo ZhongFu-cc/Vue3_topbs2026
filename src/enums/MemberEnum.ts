@@ -8,4 +8,8 @@ const memberEnums = {
   7: "工作人員",
 } as any;
 
-export { memberEnums };
+const vipCategoryIds = [4, 5, 6, 7];
+
+const memberTitles = ["Prof.", "Dr.", "Mr.", "Ms."];
+
+export { memberEnums, vipCategoryIds, memberTitles };
