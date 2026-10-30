@@ -117,6 +117,7 @@
   "repository": "https://gitee.com/youlaiorg/vue3-element-admin.git",
   "author": "ZF",
   "license": "MIT",
+  "packageManager": "pnpm@9.5.0",
   "engines": {
     "node": ">=18.0.0"
   }

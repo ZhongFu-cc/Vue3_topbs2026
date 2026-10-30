@@ -389,6 +389,9 @@ export function useTSC(config: PrinterConfiguration = { connectionType: 'usb' })
 
                         // TSC PrintServer 連接正常
                         isConnected.value = true
+                        cleanup()
+                        resolve('success')
+                        return
                     }
 
                     if ('driver_list' in responseObj) {
@@ -410,6 +413,9 @@ export function useTSC(config: PrinterConfiguration = { connectionType: 'usb' })
 
                         // TSC PrintServer 連接正常
                         isConnected.value = true
+                        cleanup()
+                        resolve('success')
+                        return
                     }
 
                     if ('Function_Failed' in responseObj) {
