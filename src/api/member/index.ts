@@ -1,5 +1,6 @@
 import request from "@/utils/request";
 import { AxiosPromise } from "axios";
+import type { CreateVipMemberPayload } from "./type";
 
 /**
  * 獲取單一會員
@@ -237,7 +238,7 @@ export function updateUnpaidMemberApi(memberId: string): AxiosPromise {
   });
 }
 
-export function addVipMemberApi(data: any): AxiosPromise {
+export function addVipMemberApi(data: CreateVipMemberPayload): AxiosPromise {
   return request({
     url: "/member/admin",
     method: "post",

@@ -27,6 +27,11 @@ export interface Member {
   remark?: string | null;
 }
 
+export type CreateVipMemberPayload = Omit<
+  Member,
+  "confirmPassword" | "countryCode"
+>;
+
 export interface PutMemberForAdminInterface {
   memberId: string;
   idCard?: string;

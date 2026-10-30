@@ -30,13 +30,16 @@ const codeMap: Record<string, number> = {
 };
 
 export const checkIdCard = (rule: any, value: string, callback: any) => {
+  if (!value) {
+    return callback(new Error("身分證字號不能為空"));
+  }
   if (!/^[A-Z][0-9]{9}$/.test(value)) {
-    callback({ valid: false, message: "身份證格式不正確" });
+    return callback(new Error("身份證格式不正確"));
   }
 
   const placeCode = codeMap[value[0]];
   if (!placeCode) {
-    callback({ valid: false, message: "首碼無效" });
+    return callback(new Error("首碼無效"));
   }
 
   const bodyCode = value.substring(1, 9);
@@ -54,11 +57,25 @@ export const checkIdCard = (rule: any, value: string, callback: any) => {
     calHead(placeCode) + calBody(bodyCode) + parseInt(lastCode) * 1;
   const isValid = idSum % 10 === 0;
   if (!isValid) {
-    callback({ valid: false, message: "身分證號不合法" });
+    callback(new Error("身分證號不合法"));
   } else {
     callback();
   }
 }
+
+export const confirmPasswordRules = (getPassword: () => string | undefined) => [
+  { required: true, message: "確認密碼不能為空", trigger: "blur" },
+  {
+    validator: (rule: any, value: string, callback: any) => {
+      if (value !== getPassword()) {
+        callback(new Error("兩次輸入的密碼不一致"));
+      } else {
+        callback();
+      }
+    },
+    trigger: "blur",
+  },
+];
 
 
 /**-------------------------------------------------------------------------- */
