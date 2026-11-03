@@ -43,12 +43,16 @@ const DEFAULT_DPI = 300
 const DEFAULT_MIN_FONT_SIZE = 120
 const DEFAULT_FONT_DECREASE_STEP = 15
 const DEFAULT_BLOCK_GAP_MM = 0.5
-const DEFAULT_FONT_FAMILY = 'Arial'
+// 印表機實際使用的字型；排版量測與畫布預覽都用同一個，避免預覽跟列印結果有落差
+export const LABEL_FONT_FAMILY = 'Microsoft JhengHei'
+// 列印時 windowsfont 使用粗體 (fontStyle '2')，量測必須用相同樣式
+export const LABEL_FONT_STYLE: FontStyleCode = '2'
+const DEFAULT_FONT_FAMILY = LABEL_FONT_FAMILY
 const INCH_TO_PX = 96
 const MM_PER_INCH = 25.4
 
 // 已透過實際印表機列印結果校正過的文字寬度係數，統一取代過去三處各自不同的 0.85 / 0.9 / 1.0
-const WIDTH_CALIBRATION = 0.85
+export const WIDTH_CALIBRATION = 0.85
 
 // 中日韓文字（含全形標點）Unicode 範圍：用來判斷一段文字是否含有 CJK 字元
 const CJK_REGEX = /[一-鿿぀-ヿ가-힣＀-￯]/
@@ -140,7 +144,7 @@ export function wrapTextByWidthMm(
         }
 
         const candidate = currentLine + char
-        const candidateWidthMm = measureTextWidthMm(candidate, fontSizeDots, '0', fontFamily, dpi)
+        const candidateWidthMm = measureTextWidthMm(candidate, fontSizeDots, LABEL_FONT_STYLE, fontFamily, dpi)
 
         if (!currentLine || candidateWidthMm <= maxWidthMm) {
             currentLine = candidate
@@ -228,7 +232,7 @@ export function computeMultiLineLayout(
 
         // 1. X 軸判定：優先縮小字型，縮到極限才折行
         while (currentFontSize >= minFontSize) {
-            const fullTextWidthMm = measureTextWidthMm(line.text, currentFontSize, '0', fontFamily, dpi)
+            const fullTextWidthMm = measureTextWidthMm(line.text, currentFontSize, LABEL_FONT_STYLE, fontFamily, dpi)
 
             if (fullTextWidthMm <= lineAvailableWidthMm) {
                 wrappedLines = [line.text]
@@ -252,7 +256,10 @@ export function computeMultiLineLayout(
 
         // 2. 依據最終確定的字型，計算 Y 軸與行高
         const lineHeightMm = (currentFontSize / dpi * MM_PER_INCH) * 1.1
-        const startY = Math.max(line.y, flowCursorY, topBoundary)
+        // 英文名 (userName) 的 Y 座標固定採用設定值，不受其他欄位（如中文名）換行/有無的影響；
+        // 其餘欄位仍依 flowCursorY 往下推，避免互相重疊
+        const isAnchored = line.textType === 'userName'
+        const startY = isAnchored ? Math.max(line.y, topBoundary) : Math.max(line.y, flowCursorY, topBoundary)
 
         // 若實際列印的 Y 座標跟設定值不一樣（被前面欄位換行/推擠往下移），印出來方便追蹤
         if (Math.abs(startY - line.y) > 0.01) {
@@ -267,7 +274,7 @@ export function computeMultiLineLayout(
             // fixed 行直接用設定的 x；center 行依實際文字寬度即時算出置中位置
             let segX = line.x
             if (!isFixed) {
-                const wrappedWidthMm = measureTextWidthMm(wrappedText, currentFontSize, '0', fontFamily, dpi)
+                const wrappedWidthMm = measureTextWidthMm(wrappedText, currentFontSize, LABEL_FONT_STYLE, fontFamily, dpi)
                 segX = Math.max(safeLeft, safeLeft + (usableWidthMm - wrappedWidthMm) / 2)
             }
 
@@ -281,7 +288,7 @@ export function computeMultiLineLayout(
         })
 
         // 更新下一行的 Y 軸游標起點
-        flowCursorY = startY + wrappedLines.length * lineHeightMm + blockGapMm
+        flowCursorY = Math.max(flowCursorY, startY + wrappedLines.length * lineHeightMm + blockGapMm)
     })
 
     return layoutSegments
