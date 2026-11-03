@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import { formatEnglishName } from '@/utils/formatName'
 
 interface PrintLineData {
     text: string;
@@ -77,7 +78,7 @@ export function usePrinterLogic() {
                     '0', // rotation
                     '2', // fontStyle (粗體)
                     '0', // fontUnderline
-                    'Arial', // fontFamily
+                    'Microsoft JhengHei', // fontFamily
                     line.text
                 )
             })
@@ -218,15 +219,7 @@ export function usePrinterLogic() {
         const memberInfo = attendee.member || {}
 
         try {
-            const lastName = memberInfo.lastName.trim().charAt(0).toUpperCase() + memberInfo.lastName.trim().slice(1).toLowerCase()
-            console.log(lastName.trim().charAt(0).toUpperCase())
-
-            // 同理處理 firstName
-            const firstName = memberInfo.firstName.trim().toLowerCase().replace(/(^|[- ]+)(.)/g, (match: any, separator: any, letter: any) => {
-                return separator + letter.toUpperCase();
-            });
-
-            const userName = `${firstName} ${lastName}`
+            const userName = `${formatEnglishName(memberInfo.firstName)} ${formatEnglishName(memberInfo.lastName)}`.trim()
             console.log(`準備打印用戶標籤: ${userName}`)
 
             // 創建副本以避免修改原始數據
