@@ -1,55 +1,58 @@
 <template>
     <section class="main-section">
         <el-card class="main-card">
-            <div class="data-section">
-                <AttendeesStats ref="attendeeStatsRef" />
+            <div class="data-section" v-if="showOtherElement">
+                <div class="stats-data-box">
+                    <el-card class="total-stats-card">
+                        <div class="stats-data-box">
+                            <p><span class="primary">實到 </span>/ 總人數</p>
+                            <el-progress class="progress" type="circle" :percentage="percentage" />
+                            <div class="total-stats-data-card-box">
+                                <el-card class="total-stats-card-item">
+                                    <h3>應到人數</h3>
+                                    <p>{{ stats.totalShouldAttend }}</p>
+                                </el-card>
+                                <el-card class="total-stats-card-item">
+                                    <h3>實到人數</h3>
+                                    <p>{{ stats.totalCheckedIn }}</p>
+                                </el-card>
+                                <el-card class="total-stats-card-item">
+                                    <h3>缺席人數</h3>
+                                    <p>{{ stats.totalNotArrived }}</p>
+                                </el-card>
+                            </div>
+                        </div>
+                    </el-card>
+
+                    <el-card class="site-stats-card">
+                        <div class="site-stats-data-card-box">
+                            <el-card class="site-stats-card-item success">
+                                <h3>現場人數</h3>
+                                <p>{{ stats.totalOnSite }}</p>
+                            </el-card>
+                            <el-card class="site-stats-card-item danger">
+                                <h3>已離開人數</h3>
+                                <p>{{ stats.totalLeft }}</p>
+                            </el-card>
+                        </div>
+                    </el-card>
+                </div>
+
                 <div class="checkin-table-box">
-                    <h1>掃碼槍簽到退系統</h1>
+                    <h1 v-if="showOtherElement">簽到退系統</h1>
 
                     <div class="function-bar">
                         <el-form-item label="" label-position="left">
                             <el-input v-model="queryText" placeholder="搜尋參與者資料" @input="handleInput" />
                         </el-form-item>
                         <el-button class="site-on" link type="primary" @click="openDialog">+現場登記</el-button>
-                        <el-button class="printer-config-btn" link type="info" @click="openPrinterConfig">
-                            <el-icon>
-                                <Setting />
-                            </el-icon>
-                            印表機設定
-                        </el-button>
                     </div>
-
-                    <div class="barcode-gun-status">
-                        <div class="status-indicator" :class="{ active: isScanning }">
-                            <el-icon>
-                                <Promotion />
-                            </el-icon>
-                            <span>{{ isScanListenerEnabled ? '正在監聽掃碼槍...' : '掃碼槍待機中' }}</span>
-                            <el-switch v-model="isScanListenerEnabled" active-text="啟用" inactive-text="停用"></el-switch>
-                        </div>
-
-
-                        <div class="action-mode">
-                            <el-button :class="checkActive === 'checkin' ? 'active' : ''" class="checkin-btn"
-                                @click="switchCheckBtn('checkin')">
-                                簽到模式
-                            </el-button>
-                            <el-button :class="checkActive === 'checkout' ? 'active' : ''" class="checkout-btn"
-                                @click="switchCheckBtn('checkout')">
-                                簽退模式
-                            </el-button>
-                        </div>
-                    </div>
-
                     <p class="primary">{{ total }} 位參加者</p>
                     <div class="scroll-box">
                         <el-scrollbar ref="scrollRef" @scroll.native="handleScroll">
                             <el-card v-for="item in showAttendeesList" class="checkin-data-card">
                                 <div class="member-info" @click="openDrawer(item)">
-                                    <p class="attendee-name" v-if="item.member.chineseName">{{ item.member.chineseName
-                                        }}</p>
-                                    <p class="attendee-name" v-else>{{ item.member.firstName }} {{ item.member.lastName
-                                        }}</p>
+                                    <p class="attendee-name">{{ item.member.chineseName }}</p>
                                     <p>{{ memberEnums[item.member.category] }}</p>
                                 </div>
                                 <el-icon class="checkin-icon" :class="item.isCheckedIn ? 'checkin' : ''"
@@ -59,11 +62,26 @@
                             </el-card>
                         </el-scrollbar>
                     </div>
+                    <div class="scan-btn-box">
+                        <el-button class="scan-btn" @click="scanBarcode" circle>
+                            <el-icon>
+                                <ElIconCamera />
+                            </el-icon>
+                        </el-button>
+                    </div>
                 </div>
-
-
             </div>
 
+            <el-button v-if="!showOtherElement" class="close-btn" @click="handleStop">close</el-button>
+
+            <div v-if="!showOtherElement" class="switch-btn">
+                <el-button :class="checkActive === 'checkin' ? 'active' : ''" class="checkin-btn"
+                    @click="switchCheckBtn('checkin')">簽到</el-button>
+                <el-button :class="checkActive === 'checkout' ? 'active' : ''" class="checkout-btn"
+                    @click="switchCheckBtn('checkout')">簽退</el-button>
+            </div>
+
+            <div id="barcode-reader" class="component-barcode-reader"></div>
         </el-card>
 
         <el-dialog class="option-dialog" v-model="isOptionDialogVisible" width="40%">
@@ -114,9 +132,7 @@
                         <el-text>{{ attendee.sequenceNo }}</el-text>
                     </el-form-item>
                     <el-form-item label="會員姓名">
-                        <el-text v-if="attendee.member && attendee.member.chineseName">{{ attendee.member.chineseName
-                            }}</el-text>
-                        <el-text v-else>{{ attendee.member.firstName }}{{ attendee.member.lastName }}</el-text>
+                        <el-text>{{ attendee.member.chineseName }}</el-text>
                     </el-form-item>
                     <el-form-item label="會員類別">
                         <el-text>{{ memberEnums[attendee.member.category] }}</el-text>
@@ -130,11 +146,6 @@
                     <el-form-item label="會員職稱">
                         <el-text>{{ attendee.member.jobTitle }}</el-text>
                     </el-form-item>
-
-                    <el-form-item label="證書證號">
-                        <el-text>{{ attendee.receiptNo }}</el-text>
-                    </el-form-item>
-
                     <el-form-item label="會員電話">
                         <el-text>{{ attendee.member.phone }}</el-text>
                     </el-form-item>
@@ -147,548 +158,38 @@
                 </el-form>
             </div>
         </el-drawer>
-
-        <!-- 印表機設定對話框 -->
-        <el-dialog v-model="isPrinterConfigVisible" title="印表機設定" width="60%" class="printer-config-dialog"
-            :before-close="closePrinterConfig">
-            <div class="printer-config">
-                <el-form label-position="left" label-width="120px">
-                    <PrinterComponent ref="printComponentRef"></PrinterComponent>
-                </el-form>
-
-                <div class="printer-actions">
-                    <el-button @click="initializePrinters" :loading="isPrinterLoading">重新整理印表機</el-button>
-                    <el-button type="primary" @click="print" :disabled="!isConnected">測試列印</el-button>
-                    <el-button type="success" plain @click="temporaryStore">暫存</el-button>
-                </div>
-            </div>
-        </el-dialog>
-
-        <!-- 移除原本的測試組件，改為設定按鈕 -->
-        <!-- <TSCPrinterExample></TSCPrinterExample> -->
     </section>
 </template>
 <script lang="ts" setup>
-import { ref, reactive, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import {
     getAttendeeListByTagAndPaginationApi,
     insertAttendeeOnSiteApi,
 } from "@/api/attendee";
-import AttendeesStats from "@/components/AttendeesRegistration/index.vue";
 import { checkinApi, deleteLastCheckinRecordApi, getCheckDataApi } from "@/api/checkin";
-import { useBarcodeGun } from "@/composables/useBarcodeGun";
-import { useTSC, type PrintData } from "@/composables/useTSC";
-import { useLabelSettings, LABEL_MARGINS } from "@/composables/useLabelSettings";
-import { measureTextWidthDots, computeMultiLineLayout } from "@/utils/labelLayout";
+import { useHtml5Code } from "@/utils/qrcodeScanner";
 import { ElNotification, ElMessage, FormInstance, NotificationHandle } from "element-plus";
-import {
-    Promotion,
-    Setting,
-    RefreshLeft
-} from "@element-plus/icons-vue";
 
 import { memberEnums } from "@/enums/MemberEnum";
 import { formRulesTW } from "@/utils/checkSum";
 
-
-import PrinterComponent from "@/views/printer/index.vue";
-
-const attendeeStatsRef = ref<InstanceType<typeof AttendeesStats>>()
-/**---------------TSC印表機設置----------------- */
-const {
-    isConnected,
-    isLoading: isPrinterLoading,
-    error: printerError,
-    printLabel,
-    selectedPrinter,
-    usbPrinters,
-    driverPrinters,
-    connectionType,
-    setConnectionType,
-    initializePrinters,
-    labelConfig
-} = useTSC({
-    connectionType: 'usb',
-    labelConfig: {
-        dpi: 300,
-        widthMm: 80,
-        heightMm: 60,  // 與 labelSettings 一致！
-        marginLeftMm: 2,
-        marginRightMm: 2
-    }
-})
-
-const printComponentRef = ref<InstanceType<typeof PrinterComponent>>()
-const print = () => {
-    if (printComponentRef.value) {
-        printComponentRef.value.printLabel()
-    } else {
-        ElNotification({
-            title: '錯誤',
-            message: '無法找到列印組件，請稍後再試。',
-            type: 'error',
-        })
-    }
-}
-
-// 標籤設定和預覽
-
-
-const { labelSettings, loadTemporaryStoredSettings: loadStoredLabelSettings } = useLabelSettings()
-
-// 監聽 labelSettings 變化並更新 labelConfig
-watch(
-    () => [labelSettings.width, labelSettings.height],
-    ([newWidth, newHeight]) => {
-        if (labelConfig) {
-            labelConfig.value.widthMm = newWidth
-            labelConfig.value.heightMm = newHeight
-            console.log(`標籤配置已更新: ${newWidth} × ${newHeight}mm`)
-        }
-    },
-    { immediate: true }
-
-)
-
-// 監聽字體大小變化並更新預覽
-watch(
-    () => labelSettings.lines.map(line => line.fontSize),
-    () => {
-        // updatePreview()
-    },
-    { deep: true }
-)
-
-// 計算文字邊界和安全區域 - 支援多行獨立設定
-const textBounds = computed(() => {
-    // 考慮TSC印表機的邊距（與 useLabelSettings 共用同一份，避免與其他畫面的邊距再度不同步）
-    const { left: leftMargin, right: rightMargin, top: topMargin, bottom: bottomMargin } = LABEL_MARGINS
-
-    // 計算每一行的邊界信息
-    const linesBounds = labelSettings.lines.map((line, index) => {
-        const fontSizeMm = line.fontSize / 300 * 25.4  // 將字體大小轉換為毫米
-        const lineHeightMm = fontSizeMm * 0.9   // 單行高度
-
-        // 計算這一行的寬度
-        const lineWidthMm = measureTextWidthDots(line.text, line.fontSize, '0', 'Arial') / 300 * 25.4 // 將字體寬度轉換為毫米
-
-        // 計算安全的最大位置（確保文字不會超出標籤邊界）
-        const maxX = Math.max(leftMargin, labelSettings.width - lineWidthMm - rightMargin)
-        const maxY = Math.max(topMargin, labelSettings.height - lineHeightMm - bottomMargin)
-
-        // 防止負值：如果文字太大，至少保持在邊距位置
-        const safeMaxX = maxX > leftMargin ? maxX : leftMargin
-        const safeMaxY = maxY > topMargin ? maxY : topMargin
-
-        return {
-            text: line.text,
-            x: line.x,
-            y: line.y,
-            fontSize: line.fontSize,
-            textWidthMm: Math.round(lineWidthMm * 10) / 10,
-            textHeightMm: Math.round(lineHeightMm * 10) / 10,
-            maxX: Math.round(safeMaxX * 10) / 10,
-            maxY: Math.round(safeMaxY * 10) / 10,
-            fontSizeMm: Math.round(fontSizeMm * 10) / 10
-        }
-    })
-
-    // 計算整體邊界框（包含所有行的最小外框）
-    let minX = Infinity, minY = Infinity, maxRight = -Infinity, maxBottom = -Infinity
-
-    linesBounds.forEach(lineBound => {
-        minX = Math.min(minX, lineBound.x)
-        minY = Math.min(minY, lineBound.y)
-        maxRight = Math.max(maxRight, lineBound.x + lineBound.textWidthMm)
-        maxBottom = Math.max(maxBottom, lineBound.y + lineBound.textHeightMm)
-    })
-
-    if (linesBounds.length === 0) {
-        minX = leftMargin
-        minY = topMargin
-        maxRight = leftMargin
-        maxBottom = topMargin
-    }
-
-    const totalWidth = maxRight - minX
-    const totalHeight = maxBottom - minY
-
-    return {
-        lines: linesBounds,
-        lineCount: labelSettings.lines.length,
-        // 整體邊界框
-        overallBounds: {
-            x: minX,
-            y: minY,
-            width: Math.round(totalWidth * 10) / 10,
-            height: Math.round(totalHeight * 10) / 10
-        },
-        // 安全區域邊界
-        leftMargin,
-        rightMargin,
-        topMargin,
-        bottomMargin
-    }
-})
-
-
-
-// 文字置中 - 重新設計的置中邏輯
-const centerText = () => {
-    console.log('開始多行置中計算...')
-
-    // 1. 計算標籤的實際可用區域(除去邊距)
-    const usableWidth = labelSettings.width - textBounds.value.leftMargin - textBounds.value.rightMargin
-    const usableHeight = labelSettings.height - textBounds.value.topMargin - textBounds.value.bottomMargin
-
-    // 2. 計算可用區域的中心點
-    const usableAreaCenterX = textBounds.value.leftMargin + (usableWidth / 2)
-    const usableAreaCenterY = textBounds.value.topMargin + (usableHeight / 2)
-
-    // 3. 只針對有內容的行做置中，避免空行影響整體位置
-    const activeLines = textBounds.value.lines.filter(lineBound => lineBound.text.trim() !== '')
-
-    if (activeLines.length === 0) {
-        console.warn('沒有可置中的文字行')
-        return
-    }
-
-    // 4. 計算整體文字區域的高度（所有行的範圍）
-    let minY = Infinity, maxBottom = -Infinity
-    activeLines.forEach(lineBound => {
-        minY = Math.min(minY, lineBound.y)
-        maxBottom = Math.max(maxBottom, lineBound.y + lineBound.textHeightMm)
-    })
-
-    const totalHeightUsed = maxBottom - minY
-
-    // 5. 計算垂直偏移來置中所有行
-    const verticalOffset = usableAreaCenterY - totalHeightUsed / 2 - minY
-
-    // 6. 為每一行設定置中位置（不依賴 canvas，直接使用 textBounds 的寬高）
-    labelSettings.lines.forEach((line, index) => {
-        const lineInfo = textBounds.value.lines[index]
-        if (!lineInfo || line.text.trim() === '') return
-
-        // 水平置中
-        const centerX = usableAreaCenterX - (lineInfo.textWidthMm / 2)
-
-        // 垂直位置：保持相對位置並整體置中
-        const centerY = line.y + verticalOffset
-
-        // 確保在安全範圍內
-        line.x = Math.max(textBounds.value.leftMargin, Math.min(centerX, lineInfo.maxX))
-        line.y = Math.max(textBounds.value.topMargin, Math.min(centerY, lineInfo.maxY))
-
-        line.x = Math.round(line.x * 10) / 10
-        line.y = Math.round(line.y * 10) / 10
-
-        console.log(`第${index + 1}行置中後位置: (${line.x}, ${line.y})mm, 文字寬度: ${lineInfo.textWidthMm}mm`)
-    })
-    // updatePreview()
-}
-
-
-
-// 透過 WebSocket 將指令送到 TSC PrintServer，單次嘗試
-// 閒置一段時間後，印表機端的連線／USB port 可能已經失效，
-// 因此這裡加上逾時保護，並在失敗時把 isConnected 重設回 false，
-// 讓畫面即時反映真實連線狀態，而不是一直卡在「已連接」
-const sendPrintCommandsOverSocket = (commandsObj: { functions_inorder: any[] }): Promise<boolean> => {
-    return new Promise((resolve) => {
-        const websocket = new WebSocket('ws://127.0.0.1:8888')
-        let settled = false
-        let timeoutId: ReturnType<typeof setTimeout>
-
-        const finish = (success: boolean) => {
-            if (settled) return
-            settled = true
-            clearTimeout(timeoutId)
-            websocket.close()
-            if (!success) {
-                isConnected.value = false
-            }
-            resolve(success)
-        }
-
-        timeoutId = setTimeout(() => {
-            console.warn('列印連線逾時，印表機可能閒置後連線已失效')
-            finish(false)
-        }, 8000)
-
-        websocket.onopen = () => {
-            websocket.send(JSON.stringify(commandsObj))
-        }
-
-        websocket.onmessage = (event) => {
-            if (event.data === 'Finished') {
-                finish(true)
-            }
-        }
-
-        websocket.onerror = () => {
-            finish(false)
-        }
-
-        websocket.onclose = () => {
-            finish(false)
-        }
-    })
-}
-
-// 送出列印指令，若第一次因連線問題失敗，重新開一條連線再試一次，
-// 用來處理印表機閒置後首次連線失敗、但馬上重連就會成功的情況
-const sendPrintCommandsWithRetry = async (commandsObj: { functions_inorder: any[] }): Promise<boolean> => {
-    const firstAttempt = await sendPrintCommandsOverSocket(commandsObj)
-    if (firstAttempt) return true
-
-    console.warn('列印連線失敗，重新連線並重試一次...')
-    return sendPrintCommandsOverSocket(commandsObj)
-}
-
-// 多行獨立設定打印函數
-const printLabelWithMultiLineSettings = async (lines: Array<{ text: string, x: number, y: number, fontSize: number, textType: string, textInfo: { textType: string }, positionMode?: string }>) => {
-    if (!isConnected.value) {
-        console.log('印表機未連接')
-        return false
-    }
-
-    try {
-        // 導入 TSC 相關函數來直接操作
-        const { tsc } = await import("@/utils/TSC")
-
-        tsc.init()
-
-        // 設定印表機連接
-        switch (connectionType.value) {
-            case 'usb':
-                if (selectedPrinter.value?.path) {
-                    tsc.openport_usb(selectedPrinter.value.path)
-                }
-                break
-            case 'driver':
-                if (selectedPrinter.value?.path) {
-                    tsc.openport_driver(selectedPrinter.value.path)
-                }
-                break
-        }
-
-        // 結束指令
-        const endCommand = new Uint8Array([13, 10])
-        tsc.sendUint8Array(endCommand)
-
-        // 清空緩存
-        tsc.clearbuffer()
-
-        // 設定紙張
-        const { width, height } = labelSettings
-        console.log(`設定紙張尺寸: ${width}mm x ${height}mm`)
-        tsc.setup(width, height, '4', '12', '0', '3', '0')
-
-        // 排版計算（縮字/換行/座標）改用與「測試列印」「畫布預覽」共用的排版引擎，
-        // 確保三處算出來的結果完全一致
-        const layoutSegments = computeMultiLineLayout(
-            lines.map(line => ({
-                text: line.text,
-                x: line.x,
-                y: line.y,
-                fontSize: line.fontSize,
-                textType: line.textInfo.textType,
-                positionMode: line.positionMode
-            })),
-            {
-                labelWidthMm: width,
-                labelHeightMm: height,
-                margins: LABEL_MARGINS
-            }
-        )
-
-        console.log('布局分段:', layoutSegments)
-
-        layoutSegments.forEach((seg) => {
-            // 將 mm 轉換為 dots (假設 300 DPI)
-            const dpi = 300
-            const xDots = Math.round(seg.x * dpi / 25.4)
-            const yDots = Math.round(seg.y * dpi / 25.4)
-
-            tsc.windowsfont(
-                String(xDots),
-                String(yDots),
-                String(seg.fontSize),
-                '0', // rotation
-                '2', // fontStyle (粗體)
-                '0', // fontUnderline
-                'Microsoft JhengHei', // fontFamily
-                seg.text
-            )
-        })
-
-        // 列印標籤
-        tsc.printlabel(1, 1)
-        tsc.closeport()
-
-        // 發送指令到印表機
-        const commandsObj = { functions_inorder: tsc.getCommands() }
-
-        return await sendPrintCommandsWithRetry(commandsObj)
-
-    } catch (error) {
-        console.error('多行獨立打印失敗:', error)
-        return false
-    }
-}
-
-// 打印用戶名稱標籤（使用多行自定義位置）
-const printUserNameLabel = async (attendee: any) => {
-    if (!isConnected.value) {
-        console.log('印表機未連接')
-        return false
-    }
-    const memberInfo = attendee.member || {}
-
-    try {
-
-        let lastName = ''
-        let firstName = ''
-        if (memberInfo.lastName) {
-            lastName = memberInfo.lastName.trim().charAt(0).toUpperCase() + memberInfo.lastName.trim().slice(1).toLowerCase()
-        }
-
-        if (memberInfo.firstName) {
-            firstName = memberInfo.firstName.trim().toLowerCase().replace(/(^|[- ]+)(.)/g, (match: any, separator: any, letter: any) => {
-                return separator + letter.toUpperCase();
-            }
-            )
-        }
-
-        // 同理處理 firstName (確保結尾沒有 .toUpperCase())
-
-        const userName = `${firstName} ${lastName}`
-        labelSettings.lines.forEach((line) => {
-            line.text = '' // 先清空所有行文字
-            console.log(line.text, line.textInfo)
-            switch (line.textInfo.textType) {
-                case 'userName':
-                    line.text = userName
-                    break
-                case 'chineseName':
-                    console.log(memberInfo)
-                    line.text = memberInfo.chineseName || ''
-                    line.textType = 'chineseName'
-                    break
-                case 'affiliation':
-                    line.text = memberInfo.affiliation || ''
-                    break
-                case 'jobTitle':
-                    line.text = memberInfo.jobTitle || ''
-                    break
-                default:
-                    // 保持原有文字或空白
-                    break
-            }
-        })
-
-        // 使用多行設定來打印
-        const lines = labelSettings.lines.filter((line) => {
-            return line.text.trim() !== ''
-        })
-
-        if (lines.length === 0) {
-            // 如果沒有設定，使用預設設定
-            const printData: PrintData = {
-                text: userName,
-                fontSize: 120,
-                x: 3,
-                y: 2,
-                rotation: '0',
-                fontStyle: '2', // 粗體
-                fontFamily: 'Arial'
-            }
-            const success: any = await printLabel(printData, 1)
-
-            if (success) {
-                ElMessage.success({
-                    message: `已打印 ${userName} 的名牌標籤`,
-                    duration: 3000
-                })
-            } else {
-                ElMessage.warning({
-                    message: '標籤列印失敗，請檢查印表機狀態',
-                    duration: 3000
-                })
-            }
-            return success
-        } else {
-            // 使用多行獨立設定打印
-            // 直接用過濾後的 lines 建立列印資料：每個元素本來就是原陣列中同一個物件，
-            // text 與 x/y/fontSize/textInfo 本來就正確配對在一起，避免某一行文字是空的時候，
-            // 後面的行「文字」跟「座標/字級」對錯位（吃到前一行的樣式）
-            const printLines = lines.map((line) => ({
-                text: line.text,
-                x: line.x,
-                y: line.y,
-                fontSize: line.fontSize,
-                positionMode: line.positionMode,
-                textType: line.textInfo.textType,
-                textInfo: line.textInfo
-            }))
-
-            const success = await printLabelWithMultiLineSettings(printLines)
-
-            if (success) {
-                ElNotification({
-                    message: `已打印 ${userName} 的名牌標籤 (${lines.length}行)`,
-                    duration: 3000
-                })
-            } else {
-                ElNotification({
-                    message: '標籤列印失敗，請檢查印表機狀態',
-                    duration: 3000
-                })
-            }
-
-            return success
-        }
-
-    } catch (error) {
-        console.error('打印標籤時發生錯誤:', error)
-        ElMessage.error({
-            message: '打印標籤時發生錯誤',
-            duration: 3000
-        })
-        return false
-    }
-}
-
-/**---------------掃碼槍設置----------------- */
-const { startScan, stopScan, isScanning, setScanCallback } = useBarcodeGun({
-    enableScanCallback: true,
-    debounceTime: 100,
-    autoSubmit: true
-});
-const isScanListenerEnabled = ref(true)
-
-watch(
-    isScanListenerEnabled,
-    (enabled) => {
-        if (enabled) {
-            startScan()
-        } else {
-            stopScan()
-        }
-    },
-    { immediate: true }
-)
+import { useAppStore } from "@/store";
+
+const closeSidebar = () => {
+    const appStore = useAppStore();
+    appStore.closeSideBar();
+};
 
 /**---------------checkin || checkout----------------- */
+
 
 const member = reactive<any>({});
 // 簽到退提交資料
 const submitCheckData = reactive<any>({
     attendeesId: "",
     location: "",
-    actionType: 1, // 默認簽到模式
+    actionType: null,
 });
+
 
 const clickRecord = reactive<any>({});
 const isOptionDialogVisible = ref(false);
@@ -727,7 +228,6 @@ const checkOut = async () => {
         submitCheckData.actionType = 2;
         let res = await checkinApi(submitCheckData);
         Object.assign(member, res.data);
-        console.log(clickRecord)
         ElNotification.success({
             message: `會員${res.data.attendeesVO.member.chineseName ? res.data.attendeesVO.member.chineseName : res.data.attendeesVO.member.firstName + res.data.attendeesVO.member.lastName}:簽退成功`,
             duration: 5000,
@@ -762,76 +262,36 @@ const checkin = async () => {
         }
 
         const type = submitCheckData.actionType == 1 ? "簽到成功" : "簽退成功";
-        // 關閉上一個簽到提醒，避免連續掃碼時提醒堆疊占用版面
+        // const lastYearText = res.data.attendeesVO.isLastYearAttendee
+        //   ? `<p style="color:green;">為去年年會參加會員</p>`
+        //   : `<p style="color:red;">非去年年會參加會員</p>`;
+        // 關閉上一個簽到提醒，避免連續簽到時提醒堆疊占用版面
         lastCheckinNotification?.close();
         lastCheckinNotification = ElNotification({
             title: `會員編號:${res.data.attendeesVO.sequenceNo}`,
             dangerouslyUseHTMLString: true,
             message: `<p style="color:green;font-weight:bold;">${type}</p>
-                會員: ${res.data.attendeesVO.member.chineseName ? res.data.attendeesVO.member.chineseName : res.data.attendeesVO.member.firstName + res.data.attendeesVO.member.lastName}<br/>
-                會員類別: ${category}<br/>
-                ${res.data.attendeesVO.member.remark ? `備註: ${res.data.attendeesVO.member.remark}` : ''}<br/>
-                ${res.data.attendeesVO.receiptNo ? `證書編號: ${res.data.attendeesVO.receiptNo}` : ''}
-                `,
+        會員: ${res.data.attendeesVO.member.chineseName ? res.data.attendeesVO.member.chineseName : res.data.attendeesVO.member.firstName + res.data.attendeesVO.member.lastName}<br/>
+        會員類別: ${category}<br/>
+        ${res.data.attendeesVO.receiptNo ? `收據編號: ${res.data.attendeesVO.receiptNo}` : ''}<br/>
+        ${res.data.attendeesVO.member.remark ? `備註: ${res.data.attendeesVO.member.remark}` : ''}
+        `,
             duration: 10000,
             type: "success",
         });
 
         handleUpdateList();
         getCheckData();
-        attendeeStatsRef?.value?.getRegistrationData();
-
-        // 自動打印用戶名稱標籤（僅簽到成功時）
-        if (submitCheckData.actionType === 1 && res.data?.attendeesVO?.member) {
-            try {
-                // 1. 等待設定載入完成
-                await nextTick(() => {
-                    loadTemporaryStoredSettings();
-                }); // 確保設定更新後 DOM 也更新
-                // 2. 設定載入後，可以稍微給予 DOM 或狀態更新一點點時間 (選用)
-                // 如果 loadTemporaryStoredSettings 只是純資料存取，這行甚至可以省略
-                await new Promise(resolve => setTimeout(resolve, 100));
-                console.log(labelSettings.lines)
-                // 3. 執行打印
-                printUserNameLabel(res.data.attendeesVO);
-            } catch (error) {
-                console.error("載入設定或列印失敗:", error);
-            }
-        }
 
     } catch (error) {
-
+        // console.log(error);
+        // ElMessage({
+        //   dangerouslyUseHTMLString: true,
+        //   message: `<p class='error-msg'>${error}</p>`,
+        //   type: "error",
+        // });
     }
 };
-
-/**---------------掃碼槍回調處理----------------- */
-const isScannable = ref(true);
-
-// 掃碼槍掃描成功回調
-const handleBarcodeScanned = async (scannedCode: string) => {
-    if (!isScannable.value) return;
-    isScannable.value = false;
-
-    console.log('掃碼槍掃描成功:', scannedCode);
-
-    try {
-        // 解碼 QR 碼內容 (假設是 base64 編碼的 attendeesId)
-        submitCheckData.attendeesId = atob(scannedCode);
-        await checkin();
-    } catch (error) {
-        console.error('QR 碼解碼失敗:', error);
-        ElMessage({
-            message: "QR 碼格式錯誤，請重新掃描",
-            type: "error",
-        });
-    }
-
-    // 防重複掃描
-    setTimeout(() => {
-        isScannable.value = true;
-    }, 500);
-};
-
 /**--------------------------------------------------- */
 
 const stats = reactive<any>({
@@ -844,9 +304,11 @@ const stats = reactive<any>({
 
 const percentage = ref(0);
 
+
 const getCheckData = async () => {
     try {
         let res = await getCheckDataApi();
+        console.log("res", res);
         percentage.value = Math.round(
             (res.data.totalCheckedIn / res.data.totalShouldAttend) * 100
         );
@@ -859,6 +321,7 @@ const getCheckData = async () => {
 /**-------------------------------------------------- */
 
 const showAttendeesList = reactive<any>([]);
+
 
 const total = ref(0);
 const currentPage = ref(1);
@@ -896,14 +359,13 @@ const handleScroll = async (e: any) => {
             grouping: true,
         });
     }
+
 };
 
 const handleSaveLastScrollData = () => {
     const scrollContainer = scrollRef.value;
     // 獲取滾動容器的高度資訊
-    console.log(scrollRef.value.$el);
-    if (!scrollContainer) return;
-    const el = scrollContainer.$el;
+    const el = scrollContainer.$el || scrollContainer;
     let wrap = el.querySelector(".el-scrollbar__wrap");
     lastScrollData.page = currentPage.value;
     lastScrollData.position = wrap.scrollTop;
@@ -911,47 +373,10 @@ const handleSaveLastScrollData = () => {
 
 /**-------------------------------------------------- */
 const isDialogVisible = ref(false);
-const isPrinterConfigVisible = ref(false)
-
 const openDialog = () => {
     isDialogVisible.value = true;
     handleSaveLastScrollData();
 };
-
-const temporaryStore = () => {
-    printComponentRef.value?.setTempSetting() // 確保在存儲前先置中，讓用戶看到最佳預覽
-}
-
-const loadTemporaryStoredSettings = () => {
-    const loaded = loadStoredLabelSettings()
-    if (!loaded) {
-        centerText() // 如果沒有暫存設定，則執行置中
-    }
-}
-
-// 開啟印表機設定對話框
-const openPrinterConfig = () => {
-    isPrinterConfigVisible.value = true
-
-    if (isScanListenerEnabled.value) {
-        stopScan()
-    }
-    // 等待 DOM 更新後初始化預觽
-    nextTick(() => {
-        loadTemporaryStoredSettings()
-    })
-}
-
-
-
-const closePrinterConfig = () => {
-    isPrinterConfigVisible.value = false
-    if (isScanListenerEnabled.value) {
-        startScan()
-    }
-}
-
-
 
 const closeDialog = () => {
     isDialogVisible.value = false;
@@ -978,8 +403,6 @@ const insertAttendees = (formEl: FormInstance | undefined) => {
                 });
                 isDialogVisible.value = false;
 
-                console.log(res.data.attendeesVO);
-                printUserNameLabel(res.data.attendeesVO);
                 handleUpdateList();
                 getCheckData();
                 formEl.resetFields();
@@ -1011,6 +434,7 @@ const getAttendeeListForPage = async (page: number) => {
             10,
             queryText.value
         );
+        console.log("getAttendeeListForPage", res);
         total.value = res.data.total;
         return res.data || [];
     } catch (error) {
@@ -1052,6 +476,7 @@ const getAttendeeList = async (resetList: boolean = false) => {
 const handleInput = () => {
     getAttendeeList(true);
 }
+
 
 const handleUpdateList = async () => {
     await getAttendeeList(true); // 重置
@@ -1097,15 +522,68 @@ const handleUpdateList = async () => {
 }
 
 const updateEveryMinute = () => {
-    return setInterval(() => {
-        console.log("每分鐘更新1");
+    setInterval(() => {
+        console.log("每分鐘更新");
         getCheckData();
         handleSaveLastScrollData();
         handleUpdateList();
     }, 60000);
 };
+/**-------------------------------------------------- */
+let html5Qrcode: any;
 
-/**---------------簽到退模式切換----------------- */
+const showOtherElement = ref(true);
+
+const decodeCheckData = ref("");
+
+onMounted(() => {
+    html5Qrcode = useHtml5Code("barcode-reader");
+    getCheckData();
+    // getAttendeesList();
+    closeSidebar();
+    getAttendeeList();
+    updateEveryMinute();
+});
+
+const isScannable = ref(true);
+const qrCodeSuccessCallback = async (decodedText: any, decodedResult: any) => {
+    if (!isScannable.value) return;
+    isScannable.value = false;
+
+    // ElMessage({
+    //   message: `掃描成功QR Code scanned: ${decodedText}`,
+    //   type: "success",
+    // });
+    console.log(`QR Code scanned: ${decodedText}`);
+    console.log(decodedResult);
+
+    submitCheckData.attendeesId = atob(decodedText);
+    // ElMessage({
+    //   message: `掃描成功QR Code scanned: ${decodeCheckData.value}`,
+    //   type: "success",
+    // });
+
+    await checkin();
+
+    setTimeout(() => {
+        isScannable.value = true;
+    }, 3000);
+};
+
+const scanBarcode = () => {
+    handleSaveLastScrollData();
+    html5Qrcode.start(qrCodeSuccessCallback);
+    showOtherElement.value = false;
+};
+
+const handleStop = () => {
+    html5Qrcode.handleStop();
+    showOtherElement.value = true;
+    handleUpdateList();
+    getCheckData();
+    checkActive.value = "checkin";
+};
+
 const checkActive = ref("checkin");
 
 const switchCheckBtn = (type: string) => {
@@ -1128,30 +606,6 @@ watch(
     },
     { immediate: true }
 );
-
-let timer: any = null;
-/**---------------生命週期和初始化----------------- */
-onMounted(() => {
-    // 設置掃碼槍回調
-    setScanCallback(handleBarcodeScanned);
-
-    // 初始化數據
-    getCheckData();
-    // closeSidebar();
-    getAttendeeList();
-    timer = updateEveryMinute();
-
-    // 初始化印表機
-    initializePrinters()
-    console.log('掃碼槍簽到系統已啟動');
-});
-
-onUnmounted(() => {
-    stopScan(); // 確保組件卸載時停止掃碼監聽
-    if (timer) {
-        clearInterval(timer);
-    }
-});
 </script>
 <style lang="scss" scoped>
 .main-section {
@@ -1306,63 +760,6 @@ onUnmounted(() => {
         justify-content: center;
     }
 
-    .barcode-gun-status {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background-color: #f5f7fa;
-        padding: 1rem;
-        border-radius: 8px;
-        margin: 1rem 0;
-
-        .status-indicator {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            color: #909399;
-
-            &.active {
-                color: #67c23a;
-                animation: pulse 2s infinite;
-            }
-
-            @keyframes pulse {
-                0% {
-                    opacity: 1;
-                }
-
-                50% {
-                    opacity: 0.6;
-                }
-
-                100% {
-                    opacity: 1;
-                }
-            }
-        }
-
-        .action-mode {
-            display: flex;
-            gap: 0;
-
-            .checkin-btn {
-                font-size: 1rem;
-                border-radius: 5px 0 0 5px;
-            }
-
-            .checkout-btn {
-                font-size: 1rem;
-                border-radius: 0 5px 5px 0;
-                margin: 0;
-            }
-
-            .active {
-                background-color: #409eff;
-                color: white;
-            }
-        }
-    }
-
     .checkin-data-card {
         padding: 0.1rem 0.5rem;
 
@@ -1385,7 +782,6 @@ onUnmounted(() => {
                 color: green !important;
             }
         }
-
     }
 
     .scan-btn {
@@ -1400,7 +796,90 @@ onUnmounted(() => {
     }
 }
 
+.stats-data-box {
+    width: 35%;
+    padding-left: 1rem;
+    margin-top: 1rem;
 
+    @media screen and (max-width: 1024px) {
+        width: 45%;
+    }
+
+    @media screen and (max-width: 768px) {
+        flex: 1;
+    }
+
+    @media screen and (max-width: 425px) {
+        width: 90%;
+    }
+}
+
+.total-stats-card {
+    width: 70%;
+    margin-left: auto;
+
+    @media screen and (max-width: 1024px) {
+        width: 100%;
+    }
+
+    :deep(.el-card__body) {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .stats-data-box {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem;
+        gap: 3rem;
+
+        .total-stats-data-card-box {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+
+            // gap: 1rem;
+            .el-card {
+                flex: 1;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                text-align: center;
+            }
+        }
+    }
+}
+
+.site-stats-card {
+    width: 70%;
+    margin-top: 2rem;
+    margin-left: auto;
+
+    @media screen and (max-width: 1024px) {
+        width: 100%;
+    }
+
+    :deep(.el-card__body) {
+        width: 100%;
+    }
+
+    .site-stats-data-card-box {
+        width: 100%;
+        display: flex;
+
+        .el-card {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+    }
+}
 
 .option-dialog {
     .btn-section {
@@ -1450,7 +929,13 @@ onUnmounted(() => {
     color: #409eff;
 }
 
+.success {
+    color: green;
+}
 
+.danger {
+    color: red;
+}
 
 .site-on {
     font-size: 1.2rem;
@@ -1502,168 +987,5 @@ onUnmounted(() => {
             color: white;
         }
     }
-}
-
-@media (max-width: 768px) {
-    .barcode-gun-status {
-        flex-direction: column !important;
-        gap: 1rem;
-    }
-}
-
-// 邊界信息樣式
-.bounds-info {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 5px;
-    font-size: 11px;
-
-    .info-text {
-        color: #409eff;
-        font-weight: 500;
-    }
-
-    .size-info {
-        color: #909399;
-    }
-}
-
-// 位置控制改進
-.position-controls {
-    .el-form-item {
-        margin-bottom: 20px;
-    }
-
-    .el-slider {
-        margin-bottom: 8px;
-    }
-
-    .line-settings {
-        background: #fafafa;
-        margin-bottom: 20px;
-
-        h5 {
-            margin: 0 0 15px 0;
-            font-weight: 600;
-        }
-
-        .bounds-info {
-            font-size: 12px;
-            color: #666;
-            line-height: 1.4;
-
-            .info-text {
-                color: #909399;
-            }
-
-            .size-info {
-                color: #67c23a;
-                font-weight: 500;
-            }
-        }
-
-        .line-actions {
-            display: flex;
-            gap: 8px;
-            margin-top: 15px;
-
-            .el-button {
-                font-size: 12px;
-            }
-        }
-    }
-
-    .global-actions {
-        display: flex;
-        gap: 10px;
-        margin-top: 20px;
-        padding-top: 15px;
-        border-top: 1px solid #ebeef5;
-
-        .el-button {
-            flex: 1;
-        }
-    }
-}
-
-// 印表機整合樣式
-.printer-status {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 8px;
-
-    .status-indicator {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 14px;
-        color: #909399;
-
-        &.active {
-            color: #67C23A;
-        }
-
-        &.error {
-            color: #F56C6C;
-        }
-
-        .el-icon {
-            font-size: 16px;
-        }
-    }
-}
-
-.printer-config {
-    .printer-actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: 12px;
-        margin-top: 20px;
-    }
-
-    .error-text {
-        color: #F56C6C;
-        font-size: 12px;
-        margin-left: 8px;
-    }
-}
-
-.printer-config-btn {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 8px 12px;
-    color: #409EFF;
-
-    &:hover {
-        background-color: #f0f9ff;
-    }
-}
-
-// 自動打印狀態樣式
-.el-switch {
-    &.is-disabled {
-        opacity: 0.5;
-    }
-}
-
-// 打印狀態提示
-.print-status-tips {
-    background: #f0f9ff;
-    border: 1px solid #b3d8ff;
-    border-radius: 4px;
-    padding: 8px 12px;
-    margin-bottom: 16px;
-    font-size: 13px;
-    color: #409EFF;
-
-    .el-icon {
-        margin-right: 6px;
-    }
-}
-
-.preview-canvas-container {
-    display: flex;
 }
 </style>

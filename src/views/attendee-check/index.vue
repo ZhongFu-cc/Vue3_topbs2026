@@ -262,9 +262,9 @@ const checkin = async () => {
     }
 
     const type = submitCheckData.actionType == 1 ? "簽到成功" : "簽退成功";
-    const lastYearText = res.data.attendeesVO.isLastYearAttendee
-      ? `<p style="color:green;">為去年年會參加會員</p>`
-      : `<p style="color:red;">非去年年會參加會員</p>`;
+    // const lastYearText = res.data.attendeesVO.isLastYearAttendee
+    //   ? `<p style="color:green;">為去年年會參加會員</p>`
+    //   : `<p style="color:red;">非去年年會參加會員</p>`;
     // 關閉上一個簽到提醒，避免連續簽到時提醒堆疊占用版面
     lastCheckinNotification?.close();
     lastCheckinNotification = ElNotification({
@@ -273,9 +273,8 @@ const checkin = async () => {
       message: `<p style="color:green;font-weight:bold;">${type}</p>
         會員: ${res.data.attendeesVO.member.chineseName ? res.data.attendeesVO.member.chineseName : res.data.attendeesVO.member.firstName + res.data.attendeesVO.member.lastName}<br/>
         會員類別: ${category}<br/>
-        ${res.data.attendeesVO.member.remark ? `備註: ${res.data.attendeesVO.member.remark}` : ''}<br/>
-        ${res.data.attendeesVO.receiptNo ? `證書編號: ${res.data.attendeesVO.receiptNo}` : ''}
-        ${lastYearText}
+        ${res.data.attendeesVO.receiptNo ? `收據編號: ${res.data.attendeesVO.receiptNo}` : ''}<br/>
+        ${res.data.attendeesVO.member.remark ? `備註: ${res.data.attendeesVO.member.remark}` : ''}
         `,
       duration: 10000,
       type: "success",
