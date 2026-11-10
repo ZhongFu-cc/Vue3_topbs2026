@@ -47,9 +47,9 @@
                             <el-card v-for="item in showAttendeesList" class="checkin-data-card">
                                 <div class="member-info" @click="openDrawer(item)">
                                     <p class="attendee-name" v-if="item.member.chineseName">{{ item.member.chineseName
-                                        }}</p>
+                                    }}</p>
                                     <p class="attendee-name" v-else>{{ item.member.firstName }} {{ item.member.lastName
-                                        }}</p>
+                                    }}</p>
                                     <p>{{ memberEnums[item.member.category] }}</p>
                                 </div>
                                 <el-icon class="checkin-icon" :class="item.isCheckedIn ? 'checkin' : ''"
@@ -115,7 +115,7 @@
                     </el-form-item>
                     <el-form-item label="會員姓名">
                         <el-text v-if="attendee.member && attendee.member.chineseName">{{ attendee.member.chineseName
-                            }}</el-text>
+                        }}</el-text>
                         <el-text v-else>{{ attendee.member.firstName }}{{ attendee.member.lastName }}</el-text>
                     </el-form-item>
                     <el-form-item label="會員類別">
@@ -770,8 +770,8 @@ const checkin = async () => {
             message: `<p style="color:green;font-weight:bold;">${type}</p>
                 會員: ${res.data.attendeesVO.member.chineseName ? res.data.attendeesVO.member.chineseName : res.data.attendeesVO.member.firstName + res.data.attendeesVO.member.lastName}<br/>
                 會員類別: ${category}<br/>
-                ${res.data.attendeesVO.member.remark ? `備註: ${res.data.attendeesVO.member.remark}` : ''}<br/>
-                ${res.data.attendeesVO.receiptNo ? `證書編號: ${res.data.attendeesVO.receiptNo}` : ''}
+                ${res.data.attendeesVO.receiptNo ? `收據編號: ${res.data.attendeesVO.receiptNo}` : ''}<br/>
+                ${res.data.attendeesVO.member.remark ? `備註: ${res.data.attendeesVO.member.remark}` : ''}
                 `,
             duration: 10000,
             type: "success",
