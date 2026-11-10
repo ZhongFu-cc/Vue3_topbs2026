@@ -44,7 +44,7 @@
                     <p class="primary">{{ total }} 位參加者</p>
                     <div class="scroll-box">
                         <el-scrollbar ref="scrollRef" @scroll.native="handleScroll">
-                            <el-card v-for="item in showAttendeesList" class="checkin-data-card">
+                            <el-card v-for="item in showAttendeesList" :key="item.attendeesId" class="checkin-data-card">
                                 <div class="member-info" @click="openDrawer(item)">
                                     <p class="attendee-name" v-if="item.member.chineseName">{{ item.member.chineseName
                                         }}</p>
@@ -872,24 +872,37 @@ const lastScrollData = reactive<any>({
     position: 0,
     page: 1,
 });
-const handleScroll = async (e: any) => {
-    let scrollContainer = scrollRef.value;
-    // 獲取滾動容器的高度資訊
+// 距離底部多少 px 內視為觸底（縮放時 scrollTop 為小數，不能用相等判斷）
+const SCROLL_BOTTOM_THRESHOLD = 50;
+
+const getScrollWrap = (): HTMLElement | null => {
+    const scrollContainer = scrollRef.value;
+    if (!scrollContainer) return null;
     const el = scrollContainer.$el || scrollContainer;
-    let wrap = el.querySelector(".el-scrollbar__wrap");
-    let scrollMoveY = (wrap.scrollTop * 100) / wrap.scrollHeight;
-    let poor = (wrap.scrollHeight - wrap.clientHeight);
-    if (
-        (poor == parseInt(wrap.scrollTop) ||
-            poor == Math.ceil(wrap.scrollTop) ||
-            poor == Math.floor(wrap.scrollTop)) &&
-        !isLoading.value &&
-        hasMoreData.value
-    ) {
+    return el.querySelector(".el-scrollbar__wrap");
+};
+
+// 內容高度不足以產生捲軸時，自動續載下一頁，避免無法觸發 scroll 事件
+const fillViewport = async () => {
+    await nextTick();
+    const wrap = getScrollWrap();
+    if (!wrap) return;
+    if (wrap.scrollHeight <= wrap.clientHeight + SCROLL_BOTTOM_THRESHOLD && hasMoreData.value && !isLoading.value) {
+        await getAttendeeList();
+    }
+};
+
+const handleScroll = async (e: any) => {
+    const wrap = getScrollWrap();
+    if (!wrap) return;
+    const distanceToBottom = wrap.scrollHeight - wrap.clientHeight - wrap.scrollTop;
+    const isNearBottom = distanceToBottom <= SCROLL_BOTTOM_THRESHOLD;
+
+    if (isNearBottom && !isLoading.value && hasMoreData.value) {
         getAttendeeList();
     }
 
-    if ((poor == parseInt(wrap.scrollTop) || poor == Math.ceil(wrap.scrollTop) || poor == Math.floor(wrap.scrollTop)) && !hasMoreData.value) {
+    if (isNearBottom && !hasMoreData.value) {
         ElMessage({
             message: "沒有更多資料了",
             type: "warning",
@@ -1012,10 +1025,10 @@ const getAttendeeListForPage = async (page: number) => {
             queryText.value
         );
         total.value = res.data.total;
-        return res.data || [];
+        return res.data || null;
     } catch (error) {
         console.error("Error fetching attendee list:", error);
-        return [];
+        return null; // 失敗回傳 null，避免被誤判為「沒有更多資料」
     }
 };
 
@@ -1033,6 +1046,8 @@ const getAttendeeList = async (resetList: boolean = false) => {
         }
         console.log("currentPage", currentPage.value);
         let res = await getAttendeeListForPage(currentPage.value);
+        if (!res) return; // 請求失敗：保持原狀，下次滾動可重試
+
         showAttendeesList.push(...res.records);
 
         if (res.records.length < 10) {
@@ -1047,33 +1062,44 @@ const getAttendeeList = async (resetList: boolean = false) => {
     } finally {
         isLoading.value = false; // 結束加載
     }
+
+    // 內容不足以滾動時繼續載入
+    if (!resetList) await fillViewport();
 };
 
-const handleInput = () => {
-    getAttendeeList(true);
+const handleInput = async () => {
+    await getAttendeeList(true);
+    await fillViewport();
 }
 
 const handleUpdateList = async () => {
+    // 正在載入（例如使用者正在滾動載入下一頁）時略過，避免與重置/補載競態
+    if (isLoading.value) return;
+
     await getAttendeeList(true); // 重置
 
     if (lastScrollData.page > 1) {
-        const pageToLoad = []; // 儲存要加載的頁碼
+        // 補載期間鎖住 isLoading，避免列表變短觸發的 scroll 事件再載入一次
+        isLoading.value = true;
+        try {
+            const pageToLoad = []; // 儲存要加載的頁碼
 
-        for (let i = 2; i <= lastScrollData.page; i++) {
-            pageToLoad.push(getAttendeeListForPage(i)); // 加載頁碼 Promise
-        }
+            for (let i = 2; i <= lastScrollData.page; i++) {
+                pageToLoad.push(getAttendeeListForPage(i)); // 加載頁碼 Promise
+            }
 
-        const allNewPagesData = await Promise.all(pageToLoad); // 等待所有頁碼的 Promise 完成
-        allNewPagesData.forEach((pageData) => {
-            showAttendeesList.push(...pageData.records); // 將新頁碼的數據添加到列表中
-        });
-        currentPage.value = lastScrollData.page + 1; // 更新當前頁碼
+            const allNewPagesData = await Promise.all(pageToLoad); // 等待所有頁碼的 Promise 完成
+            allNewPagesData.forEach((pageData) => {
+                if (!pageData) return; // 該頁請求失敗，略過
+                showAttendeesList.push(...pageData.records); // 將新頁碼的數據添加到列表中
+            });
+            currentPage.value = lastScrollData.page + 1; // 更新當前頁碼
 
-        const lastPageData = allNewPagesData[allNewPagesData.length - 1]; // 獲取最後一頁的數據
-        if (lastPageData && lastPageData.length < 10) { // 如果最後一頁的數據少於 10，則表示沒有更多數據
-            hasMoreData.value = false;
-        } else {
-            hasMoreData.value = true;// 如果還有數據，則設置為 true
+            // 最後一頁少於 10 筆表示沒有更多數據；請求失敗時保持可繼續載入
+            const lastPage = allNewPagesData[allNewPagesData.length - 1];
+            hasMoreData.value = !(lastPage && lastPage.records.length < 10);
+        } finally {
+            isLoading.value = false;
         }
 
         await nextTick(); // 等待 DOM 更新
@@ -1138,7 +1164,7 @@ onMounted(() => {
     // 初始化數據
     getCheckData();
     // closeSidebar();
-    getAttendeeList();
+    getAttendeeList().then(fillViewport);
     timer = updateEveryMinute();
 
     // 初始化印表機
