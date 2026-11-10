@@ -131,7 +131,7 @@
                         <el-text>{{ attendee.member.jobTitle }}</el-text>
                     </el-form-item>
 
-                    <el-form-item label="證書證號">
+                    <el-form-item label="收據編號">
                         <el-text>{{ attendee.receiptNo }}</el-text>
                     </el-form-item>
 
@@ -756,8 +756,8 @@ const checkin = async () => {
             message: `<p style="color:green;font-weight:bold;">${type}</p>
                 會員: ${res.data.attendeesVO.member.chineseName ? res.data.attendeesVO.member.chineseName : res.data.attendeesVO.member.firstName + res.data.attendeesVO.member.lastName}<br/>
                 會員類別: ${category}<br/>
-                ${res.data.attendeesVO.member.remark ? `備註: ${res.data.attendeesVO.member.remark}` : ''}<br/>
-                ${res.data.attendeesVO.receiptNo ? `證書編號: ${res.data.attendeesVO.receiptNo}` : ''}
+                ${res.data.attendeesVO.receiptNo ? `收據編號: ${res.data.attendeesVO.receiptNo}` : ''}<br/>
+                ${res.data.attendeesVO.member.remark ? `備註: ${res.data.attendeesVO.member.remark}` : ''}
                 `,
             duration: 10000,
             type: "success",
