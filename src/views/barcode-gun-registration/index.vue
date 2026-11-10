@@ -179,7 +179,8 @@ import { checkinApi, deleteLastCheckinRecordApi, getCheckDataApi } from "@/api/c
 import { useBarcodeGun } from "@/composables/useBarcodeGun";
 import { useTSC, type PrintData } from "@/composables/useTSC";
 import { useLabelSettings, LABEL_MARGINS } from "@/composables/useLabelSettings";
-import { measureTextWidthDots, computeMultiLineLayout } from "@/utils/labelLayout";
+import { measureTextWidthDots, computeMultiLineLayout, LABEL_FONT_FAMILY, LABEL_FONT_STYLE } from "@/utils/labelLayout";
+import { formatEnglishName } from "@/utils/formatName";
 import { ElNotification, ElMessage, FormInstance, NotificationHandle } from "element-plus";
 import {
     Promotion,
@@ -270,7 +271,7 @@ const textBounds = computed(() => {
         const lineHeightMm = fontSizeMm * 0.9   // 單行高度
 
         // 計算這一行的寬度
-        const lineWidthMm = measureTextWidthDots(line.text, line.fontSize, '0', 'Arial') / 300 * 25.4 // 將字體寬度轉換為毫米
+        const lineWidthMm = measureTextWidthDots(line.text, line.fontSize, LABEL_FONT_STYLE, LABEL_FONT_FAMILY) / 300 * 25.4 // 將字體寬度轉換為毫米
 
         // 計算安全的最大位置（確保文字不會超出標籤邊界）
         const maxX = Math.max(leftMargin, labelSettings.width - lineWidthMm - rightMargin)
@@ -548,22 +549,7 @@ const printUserNameLabel = async (attendee: any) => {
 
     try {
 
-        let lastName = ''
-        let firstName = ''
-        if (memberInfo.lastName) {
-            lastName = memberInfo.lastName.trim().charAt(0).toUpperCase() + memberInfo.lastName.trim().slice(1).toLowerCase()
-        }
-
-        if (memberInfo.firstName) {
-            firstName = memberInfo.firstName.trim().toLowerCase().replace(/(^|[- ]+)(.)/g, (match: any, separator: any, letter: any) => {
-                return separator + letter.toUpperCase();
-            }
-            )
-        }
-
-        // 同理處理 firstName (確保結尾沒有 .toUpperCase())
-
-        const userName = `${firstName} ${lastName}`
+        const userName = `${formatEnglishName(memberInfo.firstName)} ${formatEnglishName(memberInfo.lastName)}`.trim()
         labelSettings.lines.forEach((line) => {
             line.text = '' // 先清空所有行文字
             console.log(line.text, line.textInfo)
@@ -602,7 +588,7 @@ const printUserNameLabel = async (attendee: any) => {
                 y: 2,
                 rotation: '0',
                 fontStyle: '2', // 粗體
-                fontFamily: 'Arial'
+                fontFamily: LABEL_FONT_FAMILY
             }
             const success: any = await printLabel(printData, 1)
 

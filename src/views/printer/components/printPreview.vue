@@ -111,7 +111,7 @@
 import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import { useTSC } from '@/composables/useTSC'
 import { LABEL_MARGINS } from '@/composables/useLabelSettings'
-import { computeMultiLineLayout, type LabelLine } from '@/utils/labelLayout'
+import { computeMultiLineLayout, measureTextWidthDots, LABEL_FONT_FAMILY, LABEL_FONT_STYLE, WIDTH_CALIBRATION, type LabelLine } from '@/utils/labelLayout'
 import { ElMessage } from 'element-plus'
 
 /**
@@ -149,12 +149,8 @@ const CONVERSION_FACTORS = {
   INCH_TO_PX: 96,           // 英寸轉像素
   INCH_TO_DOT: 300,         // 英寸轉點數
   MM_TO_INCHES: 25.4,       // 毫米轉英寸
-  CANVAS_SCALE: 4,          // 畫布縮放比例 (1mm = 4px)
-  HORIZONTAL_SCALE: 0.9     // 水平字體縮放係數
+  CANVAS_SCALE: 4          // 畫布縮放比例 (1mm = 4px)
 } as const
-
-// 計算像素轉點數係數
-const PX_TO_DOT = CONVERSION_FACTORS.INCH_TO_DOT / CONVERSION_FACTORS.INCH_TO_PX
 
 // 標籤安全邊距設定 (TSC印表機邊距要求) 改用 useLabelSettings 匯出的共用邊距，避免與其他畫面再度不同步
 
@@ -174,10 +170,6 @@ const FONT_SETTINGS = {
 const labelConfig = ref<any>(props.labelConfig)
 const labelSettings = ref<any>(props.labelSettings)
 const previewCanvas = ref<HTMLCanvasElement | null>(null)
-
-// 可測量文字寬度的隱藏畫布
-let measureCanvas: HTMLCanvasElement | null = null
-let measureCtx: CanvasRenderingContext2D | null = null
 
 // 文字類型選項配置
 const labelType = ref([
@@ -223,49 +215,6 @@ watch(
  */
 
 /**
- * 初始化測量畫布 (用於精確計算文字寬度)
- * @returns {CanvasRenderingContext2D | null} 畫布上下文
- */
-const initMeasureCanvas = (): CanvasRenderingContext2D | null => {
-  if (!measureCanvas) {
-    measureCanvas = document.createElement('canvas')
-    measureCtx = measureCanvas.getContext('2d')
-  }
-  return measureCtx
-}
-
-/**
- * 精確計算文字寬度 (配合TSC印表機特性)
- * @param {string} text - 要測量的文字
- * @param {number} fontHeightDots - 字體高度(點數)
- * @param {any} fontStyle - 字體樣式 (0:普通, 1:斜體, 2:粗體, 3:粗斜體)
- * @param {string} faceName - 字體名稱
- * @returns {number} 文字寬度(點數)
- */
-const getPreciseWidth = (
-  text: string,
-  fontHeightDots: number,
-  fontStyle: any,
-  faceName: string
-): number => {
-  const ctx = initMeasureCanvas()
-  if (!ctx) return 0
-
-  // 將點數轉回瀏覽器像素進行測量 (假設 1mm = 3.78px)
-  const fontHeightPx = fontHeightDots / PX_TO_DOT
-  const italic = (fontStyle === '1' || fontStyle === '3') ? 'italic ' : ''
-  const bold = (fontStyle === '2' || fontStyle === '3') ? 'bold ' : ''
-
-  ctx.font = `${italic}${bold}${fontHeightPx}px "${faceName}"`
-
-  const metrics = ctx.measureText(text)
-  // 調整係數以匹配TSC印表機實際輸出
-  const pureWidthPx = (metrics.actualBoundingBoxRight - metrics.actualBoundingBoxLeft) * 0.85
-
-  return Math.round(pureWidthPx * PX_TO_DOT)
-}
-
-/**
  * ==================================================
  * 計算屬性 - 文字邊界和安全區域計算
  * ==================================================
@@ -289,7 +238,7 @@ const textBounds = computed(() => {
     const lineHeightMm = fontSizeMm * 0.9   // 單行高度係數調整
 
     // 計算這一行的實際寬度
-    const lineWidthMm = getPreciseWidth(line.text, line.fontSize, '0', 'Arial') / CONVERSION_FACTORS.INCH_TO_DOT * CONVERSION_FACTORS.MM_TO_INCHES
+    const lineWidthMm = measureTextWidthDots(line.text, line.fontSize, LABEL_FONT_STYLE, LABEL_FONT_FAMILY) / CONVERSION_FACTORS.INCH_TO_DOT * CONVERSION_FACTORS.MM_TO_INCHES
 
     // 計算安全的最大位置（確保文字不會超出標籤邊界）
     const maxX = Math.max(leftMargin, labelSettings.value.width - lineWidthMm - rightMargin)
@@ -540,7 +489,7 @@ const drawTextContent = (ctx: CanvasRenderingContext2D): boolean => {
     const fontSizeMm = seg.fontSize / CONVERSION_FACTORS.INCH_TO_DOT * CONVERSION_FACTORS.MM_TO_INCHES
     const fontSize = fontSizeMm * scale
 
-    ctx.font = `bold ${fontSize}px Arial`
+    ctx.font = `bold ${fontSize}px "${LABEL_FONT_FAMILY}"`
     ctx.fillStyle = '#000000'
     ctx.textAlign = 'left'
     ctx.textBaseline = 'alphabetic' // 使用基線，與TSC印表機一致
@@ -552,7 +501,7 @@ const drawTextContent = (ctx: CanvasRenderingContext2D): boolean => {
     // 套用水平縮放並繪製文字
     ctx.save()
     ctx.translate(textX, textY)
-    ctx.scale(CONVERSION_FACTORS.HORIZONTAL_SCALE, 1)
+    ctx.scale(WIDTH_CALIBRATION, 1)
     ctx.fillText(seg.text, 0, 0)
     ctx.restore()
   })
@@ -742,7 +691,7 @@ const centerText = () => {
  */
 const calculateActualTextWidth = (ctx: CanvasRenderingContext2D, line: any): number => {
   // 置中計算改為與列印端一致的精確寬度，避免中文在預覽中偏左
-  const textWidthDots = getPreciseWidth(line.text || '', line.fontSize, '0', 'Arial')
+  const textWidthDots = measureTextWidthDots(line.text || '', line.fontSize, LABEL_FONT_STYLE, LABEL_FONT_FAMILY)
   return textWidthDots / CONVERSION_FACTORS.INCH_TO_DOT * CONVERSION_FACTORS.MM_TO_INCHES
 }
 
