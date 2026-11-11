@@ -66,7 +66,7 @@
 
         </el-card>
 
-        <el-dialog class="option-dialog" v-model="isOptionDialogVisible" width="40%">
+        <el-dialog class="option-dialog" v-model="isOptionDialogVisible" width="min(90vw, 480px)">
             <div class="btn-section">
                 <el-button @click="checkOut">
                     <div class="content">
@@ -89,7 +89,7 @@
             </div>
         </el-dialog>
 
-        <el-dialog v-model="isDialogVisible" width="40%" :before-close="closeDialog">
+        <el-dialog v-model="isDialogVisible" width="min(90vw, 480px)" :before-close="closeDialog">
             <h1>現場登記</h1>
             <el-form class="insert-form" :model="insertFormData" label-position="top" :rules="formRulesTW"
                 ref="insertFormRef">
@@ -107,7 +107,7 @@
             </div>
         </el-dialog>
 
-        <el-drawer v-model="isDrawerVisible" title="會員資料" :size="'50%'" :before-close="closeDrawer">
+        <el-drawer v-model="isDrawerVisible" title="會員資料" :size="'min(90vw, 520px)'" :before-close="closeDrawer">
             <div class="drawer-content">
                 <el-form label-position="left">
                     <el-form-item label="會員編號">
@@ -149,10 +149,10 @@
         </el-drawer>
 
         <!-- 印表機設定對話框 -->
-        <el-dialog v-model="isPrinterConfigVisible" title="印表機設定" width="60%" class="printer-config-dialog"
+        <el-dialog v-model="isPrinterConfigVisible" title="印表機設定" width="min(95vw, 900px)" class="printer-config-dialog"
             :before-close="closePrinterConfig">
             <div class="printer-config">
-                <el-form label-position="left" label-width="120px">
+                <el-form :label-position="isSmallScreen ? 'top' : 'left'" label-width="120px">
                     <PrinterComponent ref="printComponentRef"></PrinterComponent>
                 </el-form>
 
@@ -911,6 +911,8 @@ const handleSaveLastScrollData = () => {
 /**-------------------------------------------------- */
 const isDialogVisible = ref(false);
 const isPrinterConfigVisible = ref(false)
+// 小螢幕時表單 label 改為置頂，避免固定 120px label 擠壓輸入欄
+const isSmallScreen = useMediaQuery('(max-width: 768px)')
 
 const openDialog = () => {
     isDialogVisible.value = true;
@@ -1179,7 +1181,7 @@ onUnmounted(() => {
 
     h1 {
         text-align: center;
-        font-size: 2rem;
+        font-size: clamp(1.4rem, 4vw, 2rem);
         margin: 1% 0;
     }
 }
@@ -1266,17 +1268,19 @@ onUnmounted(() => {
     gap: 1rem;
     // max-height: 80vh;
 
-    @media screen and (max-width: 425px) {
+    @media screen and (max-width: 1024px) {
         flex-direction: column;
-        align-items: center;
+        align-items: stretch;
     }
 }
 
 .function-bar {
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
     align-items: center;
     text-align: center;
+    gap: 0.5rem;
     margin-bottom: 1rem;
 
     .el-form-item {
@@ -1285,7 +1289,12 @@ onUnmounted(() => {
 
     .el-input {
         font-size: 1.2rem;
-        margin-right: 1rem;
+    }
+
+    @media screen and (max-width: 768px) {
+        .el-form-item {
+            flex: 1 1 100%;
+        }
     }
 }
 
@@ -1297,20 +1306,15 @@ onUnmounted(() => {
     width: 35%;
     position: relative;
 
+    box-sizing: border-box;
+
     @media screen and (max-width: 1024px) {
-        width: 45%;
-    }
-
-    @media screen and (max-width: 768px) {
-        flex: 1;
-    }
-
-    @media screen and (max-width: 425px) {
-        width: 90%;
+        width: 100%;
+        margin-top: 0;
     }
 
     .scroll-box {
-        height: 60vh;
+        height: clamp(300px, 60vh, 70vh);
     }
 
     .scan-btn-box {
@@ -1516,10 +1520,35 @@ onUnmounted(() => {
     }
 }
 
-@media (max-width: 768px) {
-    .barcode-gun-status {
-        flex-direction: column !important;
+@media (max-width: 1024px) {
+    .checkin-table-box .barcode-gun-status {
+        flex-direction: column;
+        align-items: stretch;
         gap: 1rem;
+
+        .status-indicator {
+            flex-wrap: wrap;
+        }
+
+        .action-mode {
+            width: 100%;
+
+            .el-button {
+                flex: 1;
+            }
+        }
+    }
+}
+
+.printer-config {
+    .printer-actions {
+        flex-wrap: wrap;
+    }
+}
+
+@media (max-width: 768px) {
+    :deep(.printer-config-dialog .el-dialog__body) {
+        padding: 10px;
     }
 }
 

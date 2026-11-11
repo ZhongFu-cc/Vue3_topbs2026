@@ -1,6 +1,6 @@
 <template>
   <main>
-    <el-form label-position="left" label-width="120px">
+    <el-form :label-position="isSmallScreen ? 'top' : 'left'" label-width="120px">
       <el-form-item label="連接方式">
         <el-radio-group v-model="connectionType" @change="handleConnectionTypeChange">
           <el-radio v-for="type in connectionTypes" :key="type.key" :label="type.label" :value="type.value" />
@@ -30,6 +30,8 @@
 </template>
 <script lang="ts" setup>
 import { useTSC } from '@/composables/useTSC';
+
+const isSmallScreen = useMediaQuery('(max-width: 768px)')
 
 // 連接方式
 const connectionTypes = [

@@ -81,16 +81,12 @@ onMounted(() => {
   padding-left: 1rem;
   margin-top: 1rem;
 
+  box-sizing: border-box;
+
   @media screen and (max-width: 1024px) {
-    width: 45%;
-  }
-
-  @media screen and (max-width: 768px) {
-    flex: 1;
-  }
-
-  @media screen and (max-width: 425px) {
-    width: 90%;
+    width: 100%;
+    padding-left: 0;
+    margin-top: 0;
   }
 }
 
