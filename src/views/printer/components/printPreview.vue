@@ -46,21 +46,21 @@
         </el-form-item>
 
         <el-row :gutter="20">
-          <el-col :span="8">
+          <el-col :xs="24" :sm="8">
             <el-form-item label="X 軸位置 (mm)">
               <el-input-number v-model="line.x" :min="textBounds.leftMargin"
                 :max="textBounds.lines[index]?.maxX || textBounds.leftMargin" :step="0.5" :precision="1" size="small"
                 @change="updatePreview" />
             </el-form-item>
           </el-col>
-          <el-col :span="8">
+          <el-col :xs="24" :sm="8">
             <el-form-item label="Y 軸位置 (mm)">
               <el-input-number v-model="line.y" :min="textBounds.topMargin"
                 :max="textBounds.lines[index]?.maxY || textBounds.topMargin" :step="0.5" :precision="1" size="small"
                 @change="updatePreview" />
             </el-form-item>
           </el-col>
-          <el-col :span="8">
+          <el-col :xs="24" :sm="8">
             <el-form-item label="字體大小">
               <el-input-number v-model="line.fontSize" :min="FONT_SETTINGS.MIN_SIZE" :step="FONT_SETTINGS.SIZE_STEP"
                 size="small" @change="updatePreview" />
@@ -69,7 +69,7 @@
         </el-row>
 
         <el-row :gutter="10">
-          <el-col :span="12">
+          <el-col :xs="24" :sm="12">
             <div class="bounds-info">
               <span class="info-text">X範圍: {{ textBounds.leftMargin }}mm ~ {{
                 textBounds.lines[index]?.maxX || textBounds.leftMargin }}mm</span>
@@ -79,7 +79,7 @@
               }}mm</span>
             </div>
           </el-col>
-          <el-col :span="12">
+          <el-col :xs="24" :sm="12">
             <div class="bounds-info">
               <span class="info-text">Y範圍: {{ textBounds.topMargin }}mm ~ {{
                 textBounds.lines[index]?.maxY || textBounds.topMargin }}mm</span>
@@ -911,6 +911,8 @@ onMounted(() => {
 
 /* 畫布樣式 */
 .preview-canvas {
+  max-width: 100%;
+  height: auto;
   border: 2px solid #ddd;
   border-radius: 8px;
   background-color: #ffffff;
@@ -977,6 +979,7 @@ onMounted(() => {
 /* 行操作按鈕區域 */
 .line-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 10px;
 }
@@ -994,9 +997,31 @@ onMounted(() => {
 
 /* 響應式設計 */
 @media (max-width: 768px) {
+  .content {
+    padding: 10px;
+  }
+
+  .position-controls {
+    padding: 10px;
+  }
+
   .preview-canvas-container {
     flex-direction: column;
     gap: 20px;
+  }
+
+  .preview-canvas-container > div {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .line-settings {
+    padding: 10px !important;
+  }
+
+  .position-controls :deep(.el-input-number),
+  .position-controls :deep(.el-select) {
+    width: 100%;
   }
 
   .global-actions {
